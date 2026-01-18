@@ -1,0 +1,231 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, MapPin, ChevronRight, Newspaper } from 'lucide-react';
+import { ApiService, getImageUrl } from '../lib/api';
+import PageLayout, { ViewMode } from './common/PageLayout';
+import CardGrid from './common/CardGrid';
+
+interface NewsArticle {
+  id: number;
+  attributes: {
+    Title: string;
+    ShortDescription: string;
+    Slug: string;
+    Location: string;
+    TimePeriod: string;
+    publishedAt: string;
+    HeroImage?: {
+      data?: {
+        attributes: {
+          url: string;
+          alternativeText?: string;
+        };
+      };
+    };
+    CategoryChip?: {
+      ImageLink: string;
+      Image?: {
+        data?: {
+          attributes: {
+            url: string;
+          };
+        };
+      };
+    };
+  };
+}
+
+export default function NewsPage() {
+  const navigate = useNavigate();
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  useEffect(() => {
+    loadNews();
+  }, []);
+
+  const loadNews = async () => {
+    setIsLoading(true);
+    try {
+      const response = await ApiService.getNews();
+      setNews(response.data || []);
+    } catch (error) {
+      console.error('Error loading news:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredNews = news.filter(
+    (article) =>
+      article.attributes.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      article.attributes.ShortDescription.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const emptyState = (
+    <div className="text-center py-20">
+      <Newspaper className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+      <h3 className="text-xl font-bold text-dark mb-2">
+        {searchTerm ? 'No news articles found.' : 'No news articles yet'}
+      </h3>
+      <p className="text-gray-600 text-base">
+        {searchTerm ? 'Try adjusting your search query.' : 'Check back later for updates.'}
+      </p>
+    </div>
+  );
+
+  const renderGrid = () => (
+    <CardGrid>
+      {filteredNews.map((article) => (
+        <div
+          key={article.id}
+          onClick={() => navigate(`/news/${article.id}`)}
+          className="bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer group border border-gray-100"
+        >
+          {article.attributes.HeroImage?.data?.attributes?.url ? (
+            <div className="aspect-video bg-gray-100 overflow-hidden">
+              <img
+                src={getImageUrl(article.attributes.HeroImage.data.attributes.url) || ''}
+                alt={article.attributes.HeroImage.data.attributes.alternativeText || article.attributes.Title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.className = 'aspect-video bg-gradient-to-br from-gray-100 to-gray-200';
+                }}
+              />
+            </div>
+          ) : (
+            <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200" />
+          )}
+
+          <div className="p-6">
+            {article.attributes.CategoryChip && (
+              <div className="flex items-center gap-2 mb-4">
+                {article.attributes.CategoryChip.Image?.data?.attributes?.url && (
+                  <img
+                    src={getImageUrl(article.attributes.CategoryChip.Image.data.attributes.url) || ''}
+                    alt={article.attributes.CategoryChip.ImageLink}
+                    className="w-5 h-5"
+                    onError={(e) => e.currentTarget.style.display = 'none'}
+                  />
+                )}
+                <span className="text-sm font-semibold text-gray-600">
+                  {article.attributes.CategoryChip.ImageLink}
+                </span>
+              </div>
+            )}
+
+            <h3 className="text-xl font-bold text-dark mb-3 line-clamp-2 group-hover:text-primary transition-colors">
+              {article.attributes.Title}
+            </h3>
+
+            <p className="text-base text-gray-600 mb-6 line-clamp-3 leading-relaxed">
+              {article.attributes.ShortDescription}
+            </p>
+
+            <div className="flex flex-col gap-2 text-sm text-gray-500">
+              {article.attributes.Location && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span>{article.attributes.Location}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                <span>{article.attributes.TimePeriod || formatDate(article.attributes.publishedAt)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </CardGrid>
+  );
+
+  const renderList = () => (
+    <div className="flex flex-col gap-4">
+      {filteredNews.map((article) => (
+        <div
+          key={article.id}
+          onClick={() => navigate(`/news/${article.id}`)}
+          className="group bg-white rounded-2xl p-4 border border-gray-100 hover:shadow-lg transition-all duration-200 cursor-pointer flex items-center gap-6"
+        >
+          <div className="w-32 h-24 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 relative">
+            {article.attributes.HeroImage?.data?.attributes?.url ? (
+              <img
+                src={getImageUrl(article.attributes.HeroImage.data.attributes.url) || ''}
+                alt={article.attributes.HeroImage.data.attributes.alternativeText || article.attributes.Title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.className = 'w-full h-full bg-gradient-to-br from-gray-100 to-gray-200';
+                }}
+              />
+            ) : (
+               <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200" />
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+             {article.attributes.CategoryChip && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    {article.attributes.CategoryChip.ImageLink}
+                  </span>
+                </div>
+              )}
+             <h3 className="text-lg font-bold text-dark mb-1 group-hover:text-primary transition-colors truncate">
+              {article.attributes.Title}
+             </h3>
+             <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+               {article.attributes.ShortDescription}
+             </p>
+             <div className="flex items-center gap-4 text-xs text-gray-500">
+               {article.attributes.Location && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>{article.attributes.Location}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  <span>{article.attributes.TimePeriod || formatDate(article.attributes.publishedAt)}</span>
+                </div>
+             </div>
+          </div>
+
+          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <PageLayout
+      title="News & Articles"
+      description="Latest news and updates from Tarento"
+      actionLabel="Add New"
+      onAction={() => navigate('/news/new')}
+      isLoading={isLoading}
+      emptyState={filteredNews.length === 0 ? emptyState : undefined}
+      
+      searchQuery={searchTerm}
+      onSearchChange={setSearchTerm}
+      searchPlaceholder="Search news..."
+      
+      viewMode={viewMode}
+      onViewModeChange={setViewMode}
+    >
+      {viewMode === 'grid' ? renderGrid() : renderList()}
+    </PageLayout>
+  );
+}
