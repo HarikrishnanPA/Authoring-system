@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Layers } from 'lucide-react';
-import Sidebar from '../Sidebar';
+import Sidebar from './Sidebar';
 
 interface DetailPageLayoutProps {
   isLoading?: boolean;

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layers, ChevronRight } from 'lucide-react';
-import { ApiService, ServicesDetailResponse, getImageUrl } from '../lib/api';
-import PageLayout, { ViewMode } from './common/PageLayout';
-import CardGrid from './common/CardGrid';
+import { ApiService, ServicesDetailResponse, getImageUrl } from '@/lib/api';
+import { PageLayout, CardGrid } from '@/components/layout';
+import type { ViewMode } from '@/components/layout';
 
 type ServiceItem = ServicesDetailResponse['data'][0];
 

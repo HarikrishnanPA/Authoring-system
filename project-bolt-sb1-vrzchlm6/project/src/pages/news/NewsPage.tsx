@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, ChevronRight, Newspaper } from 'lucide-react';
-import { ApiService, getImageUrl } from '../lib/api';
-import PageLayout, { ViewMode } from './common/PageLayout';
-import CardGrid from './common/CardGrid';
+import { ApiService, getImageUrl } from '@/lib/api';
+import { PageLayout, CardGrid } from '@/components/layout';
+import type { ViewMode } from '@/components/layout';
 
 interface NewsArticle {
   id: number;

@@ -1,19 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import LoginPage from './components/LoginPage';
-import OverviewPage from './components/OverviewPage';
-import ServicesPage from './components/ServicesPage';
-import ServiceDetailPage from './components/ServiceDetailPage';
-import ServiceFormPage from './components/ServiceFormPage';
-import CaseStudiesPage from './components/CaseStudiesPage';
-import CaseStudyDetailPage from './components/CaseStudyDetailPage';
-import CaseStudyFormPage from './components/CaseStudyFormPage';
-import NewsPage from './components/NewsPage';
-import NewsDetailPage from './components/NewsDetailPage';
-import NewsFormPage from './components/NewsFormPage';
-import ArticlesPage from './components/ArticlesPage';
-import PortfoliosPage from './components/PortfoliosPage';
-import BlogsPage from './components/BlogsPage';
+import LoginPage from './pages/auth/LoginPage';
+import OverviewPage from './pages/overview/OverviewPage';
+import ServicesPage from './pages/services/ServicesPage';
+import ServiceDetailPage from './pages/services/ServiceDetailPage';
+import ServiceFormPage from './pages/services/ServiceFormPage';
+import CaseStudiesPage from './pages/case-studies/CaseStudiesPage';
+import CaseStudyDetailPage from './pages/case-studies/CaseStudyDetailPage';
+import CaseStudyFormPage from './pages/case-studies/CaseStudyFormPage';
+import NewsPage from './pages/news/NewsPage';
+import NewsDetailPage from './pages/news/NewsDetailPage';
+import NewsFormPage from './pages/news/NewsFormPage';
+import ArticlesPage from './pages/placeholder/ArticlesPage';
+import PortfoliosPage from './pages/placeholder/PortfoliosPage';
+import BlogsPage from './pages/placeholder/BlogsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();

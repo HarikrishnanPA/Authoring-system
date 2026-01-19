@@ -1,8 +1,8 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, Grid } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
-import { ApiService } from '../lib/api';
+import { ApiService } from '@/lib/api';
 
 export default function Sidebar() {
   const navigate = useNavigate();

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, User, Tag } from 'lucide-react';
 import { marked } from 'marked';
-import { ApiService, CaseStudyDetailItem, getImageUrl } from '../lib/api';
-import DetailPageLayout from './common/DetailPageLayout';
+import { ApiService, CaseStudyDetailItem, getImageUrl } from '@/lib/api';
+import { DetailPageLayout } from '@/components/layout';
 
 export default function CaseStudyDetailPage() {
   const { id } = useParams<{ id: string }>();

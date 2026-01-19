@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, BookOpen, Newspaper, FileText, Image, PenTool } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import Sidebar from './Sidebar';
-import { ApiService } from '../lib/api';
+import { Sidebar } from '@/components/layout';
+import { ApiService } from '@/lib/api';
 
 export default function OverviewPage() {
   const navigate = useNavigate();

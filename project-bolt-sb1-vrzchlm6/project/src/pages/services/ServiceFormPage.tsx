@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Save, Eye, Plus, Trash } from 'lucide-react';
-import Sidebar from './Sidebar';
-import { ApiService } from '../lib/api';
+import { Sidebar } from '@/components/layout';
+import { ApiService } from '@/lib/api';
 
 interface HeroCardItem {
   Title: string;
@@ -233,15 +233,25 @@ export default function ServiceFormPage() {
     setError(null);
 
     try {
-      // In a real implementation, we would handle 'publishedAt' based on shouldPublish
+      // Prepare payload and exclude empty image IDs
+      const payload = { ...formData };
+      
+      // Remove image fields if they're 0 (not set)
+      if (payload.Image === 0) {
+        delete (payload as any).Image;
+      }
+      if (payload.SectionThreeImage === 0) {
+        delete (payload as any).SectionThreeImage;
+      }
+      
       console.log('Publishing:', shouldPublish);
       
       if (isEditMode && id) {
         // Update existing service
-        await ApiService.updateService(parseInt(id), formData);
+        await ApiService.updateService(parseInt(id), payload);
       } else {
         // Create new service
-        await ApiService.createService(formData);
+        await ApiService.createService(payload);
       }
       navigate('/services');
     } catch (err: any) {

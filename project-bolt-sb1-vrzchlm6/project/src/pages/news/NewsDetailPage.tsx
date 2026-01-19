@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Share2 } from 'lucide-react';
 import { marked } from 'marked';
-import { ApiService, NewsDetailItem, getImageUrl } from '../lib/api';
-import DetailPageLayout from './common/DetailPageLayout';
+import { ApiService, NewsDetailItem, getImageUrl } from '@/lib/api';
+import { DetailPageLayout } from '@/components/layout';
 
 export default function NewsDetailPage() {
   const { id } = useParams<{ id: string }>();

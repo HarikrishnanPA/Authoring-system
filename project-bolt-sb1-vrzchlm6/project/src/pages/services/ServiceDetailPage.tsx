@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { marked } from 'marked';
 import { ArrowLeft } from 'lucide-react';
-import { ApiService, ServicesDetailItem, getImageUrl } from '../lib/api';
-import DetailPageLayout from './common/DetailPageLayout';
+import { ApiService, ServicesDetailItem, getImageUrl } from '@/lib/api';
+import { DetailPageLayout } from '@/components/layout';
 
 export default function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();

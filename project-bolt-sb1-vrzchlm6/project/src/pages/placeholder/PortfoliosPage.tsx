@@ -1,21 +1,21 @@
 import { Layers } from 'lucide-react';
-import PageLayout from './common/PageLayout';
+import { PageLayout } from '@/components/layout';
 
-export default function BlogsPage() {
+export default function PortfoliosPage() {
   const emptyState = (
     <div className="text-center py-20">
       <Layers className="mx-auto h-12 w-12 text-gray-400 mb-4" />
       <p className="text-xl font-bold text-dark mb-2">
-        No blog posts found.
+        No portfolios found.
       </p>
     </div>
   );
 
   return (
     <PageLayout
-      title="Blogs"
-      description="Manage your blog posts"
-      actionLabel="Add Blog"
+      title="Portfolios"
+      description="Showcase your work"
+      actionLabel="Add Portfolio"
       onAction={() => {}}
       emptyState={emptyState}
     >
