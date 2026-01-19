@@ -11,6 +11,9 @@ import CaseStudyFormPage from './components/CaseStudyFormPage';
 import NewsPage from './components/NewsPage';
 import NewsDetailPage from './components/NewsDetailPage';
 import NewsFormPage from './components/NewsFormPage';
+import ArticlesPage from './components/ArticlesPage';
+import PortfoliosPage from './components/PortfoliosPage';
+import BlogsPage from './components/BlogsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
@@ -62,18 +65,26 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/services/:id"
-        element={
-          <ProtectedRoute>
-            <ServiceDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/services/new"
         element={
           <ProtectedRoute>
             <ServiceFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/services/:id/edit"
+        element={
+          <ProtectedRoute>
+            <ServiceFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/services/:id"
+        element={
+          <ProtectedRoute>
+            <ServiceDetailPage />
           </ProtectedRoute>
         }
       />
@@ -138,6 +149,30 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <NewsDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/articles"
+        element={
+          <ProtectedRoute>
+            <ArticlesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/portfolios"
+        element={
+          <ProtectedRoute>
+            <PortfoliosPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/blogs"
+        element={
+          <ProtectedRoute>
+            <BlogsPage />
           </ProtectedRoute>
         }
       />

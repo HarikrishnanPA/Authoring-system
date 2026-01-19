@@ -264,6 +264,24 @@ export class ApiService {
 
     return response.json();
   }
+
+  static async updateService(id: number, data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/services-detail/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to update service');
+    }
+
+    return response.json();
+  }
 }
 
 export type ServicesDetailItem = ServicesDetailResponse['data'][0];

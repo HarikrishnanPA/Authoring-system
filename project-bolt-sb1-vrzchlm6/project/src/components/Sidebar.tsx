@@ -8,9 +8,18 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
-  const [newsCount, setNewsCount] = useState<number>(0);
-  const [caseStudiesCount, setCaseStudiesCount] = useState<number>(0);
-  const [servicesCount, setServicesCount] = useState<number>(0);
+  const [newsCount, setNewsCount] = useState<number>(() => {
+    const cached = localStorage.getItem('sidebar_news_count');
+    return cached ? parseInt(cached, 10) : 0;
+  });
+  const [caseStudiesCount, setCaseStudiesCount] = useState<number>(() => {
+    const cached = localStorage.getItem('sidebar_case_studies_count');
+    return cached ? parseInt(cached, 10) : 0;
+  });
+  const [servicesCount, setServicesCount] = useState<number>(() => {
+    const cached = localStorage.getItem('sidebar_services_count');
+    return cached ? parseInt(cached, 10) : 0;
+  });
   const totalPages = 3;
 
   useEffect(() => {
@@ -22,9 +31,18 @@ export default function Sidebar() {
           ApiService.getServicesDetail(),
         ]);
 
-        setNewsCount(newsData.data?.length || 0);
-        setCaseStudiesCount(caseStudiesData.data?.length || 0);
-        setServicesCount(servicesData.data?.length || 0);
+        const newNewsCount = newsData.data?.length || 0;
+        const newCaseStudiesCount = caseStudiesData.data?.length || 0;
+        const newServicesCount = servicesData.data?.length || 0;
+
+        setNewsCount(newNewsCount);
+        setCaseStudiesCount(newCaseStudiesCount);
+        setServicesCount(newServicesCount);
+
+        // Cache the counts
+        localStorage.setItem('sidebar_news_count', newNewsCount.toString());
+        localStorage.setItem('sidebar_case_studies_count', newCaseStudiesCount.toString());
+        localStorage.setItem('sidebar_services_count', newServicesCount.toString());
       } catch (error) {
         console.error('Failed to fetch counts:', error);
       }
@@ -116,6 +134,36 @@ export default function Sidebar() {
               <span className={`text-sm font-semibold ${isNewsActive ? 'text-primary' : 'text-gray-400'}`}>
                 {newsCount}
               </span>
+            </button>
+            <button
+              onClick={() => navigate('/articles')}
+              className={`w-full px-4 py-3 text-base font-semibold rounded-2xl transition-all flex items-center justify-between ${
+                location.pathname.startsWith('/articles')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-dark'
+              }`}
+            >
+              <span>Articles</span>
+            </button>
+            <button
+              onClick={() => navigate('/portfolios')}
+              className={`w-full px-4 py-3 text-base font-semibold rounded-2xl transition-all flex items-center justify-between ${
+                location.pathname.startsWith('/portfolios')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-dark'
+              }`}
+            >
+              <span>Portfolios</span>
+            </button>
+            <button
+              onClick={() => navigate('/blogs')}
+              className={`w-full px-4 py-3 text-base font-semibold rounded-2xl transition-all flex items-center justify-between ${
+                location.pathname.startsWith('/blogs')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-dark'
+              }`}
+            >
+              <span>Blogs</span>
             </button>
           </div>
         </nav>

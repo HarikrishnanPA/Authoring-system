@@ -72,15 +72,8 @@ export default function CaseStudyFormPage() {
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-            </div>
-          ) : (
-            <>
-          <div className="mb-6 flex items-center justify-between">
+        <header className="bg-white border-b border-gray-100 px-8 py-6">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <button
                 onClick={() => navigate('/case-studies')}
@@ -125,7 +118,14 @@ export default function CaseStudyFormPage() {
               </button>
             </div>
           </div>
+        </header>
 
+        <div className="flex-1 overflow-y-auto p-8">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-6">
               {isNewCaseStudy ? 'Create New Case Study' : 'Edit Case Study'}
@@ -203,9 +203,7 @@ export default function CaseStudyFormPage() {
               </div>
             </div>
           </div>
-            </>
           )}
-        </div>
         </div>
       </div>
     </div>
