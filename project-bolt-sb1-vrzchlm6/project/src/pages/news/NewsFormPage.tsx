@@ -2,7 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Save, Eye, Plus, Trash2, MoveUp, MoveDown, FileText, EyeIcon } from 'lucide-react';
 import { Sidebar } from '@/components/layout';
+import { RichTextEditor } from '@/components/editor';
 import { ApiService } from '@/lib/api';
+import { marked } from 'marked';
+
+// Configure marked to use GitHub Flavored Markdown
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
 
 interface Breadcrumb {
   Label: string;
@@ -32,7 +40,15 @@ export default function NewsFormPage() {
     seoTitle: '',
     seoDescription: '',
     seoKeywords: '',
+    seoMetaImageId: '',
   });
+
+  const [metaSocial, setMetaSocial] = useState<Array<{
+    socialNetwork: string;
+    title: string;
+    description: string;
+    imageId: string;
+  }>>([]);
 
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([
     { Label: 'News', Link: '/news' },
@@ -110,7 +126,19 @@ export default function NewsFormPage() {
           seoTitle: article.attributes.seo?.metaTitle || '',
           seoDescription: article.attributes.seo?.metaDescription || '',
           seoKeywords: article.attributes.seo?.keywords || '',
+          seoMetaImageId: article.attributes.seo?.metaImage?.data?.id?.toString() || '',
         });
+
+        // Load metaSocial data
+        const metaSocialData = article.attributes.seo?.metaSocial || [];
+        setMetaSocial(
+          metaSocialData.map((social: any) => ({
+            socialNetwork: social.socialNetwork || '',
+            title: social.title || '',
+            description: social.description || '',
+            imageId: social.image?.data?.id?.toString() || '',
+          }))
+        );
 
         setBreadcrumbs(cleanedBreadcrumbs);
       }
@@ -193,11 +221,30 @@ export default function NewsFormPage() {
       }
 
       // Add SEO
-      payload.seo = {
+      const seoPayload: any = {
         metaTitle: formData.seoTitle || formData.title,
         metaDescription: formData.seoDescription || formData.shortDescription,
         keywords: formData.seoKeywords,
       };
+
+      // Add metaImage if set
+      if (formData.seoMetaImageId && formData.seoMetaImageId !== '') {
+        seoPayload.metaImage = parseInt(formData.seoMetaImageId);
+      }
+
+      // Add metaSocial if set
+      if (metaSocial.length > 0) {
+        seoPayload.metaSocial = metaSocial
+          .filter(social => social.socialNetwork && social.title)
+          .map(social => ({
+            socialNetwork: social.socialNetwork,
+            title: social.title,
+            description: social.description,
+            image: social.imageId ? parseInt(social.imageId) : undefined,
+          }));
+      }
+
+      payload.seo = seoPayload;
 
       console.log('Payload:', payload);
 
@@ -452,7 +499,38 @@ export default function NewsFormPage() {
                 />
               </div>
 
-              {/* 5. Content */}
+              {/* 5. TimePeriod & Location */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="timePeriod" className="block text-sm font-medium text-gray-700 mb-2">
+                    TimePeriod
+                  </label>
+                  <input
+                    id="timePeriod"
+                    type="text"
+                    value={formData.timePeriod}
+                    onChange={(e) => setFormData({ ...formData, timePeriod: e.target.value })}
+                    placeholder="e.g., 3 April 2024"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                    Location
+                  </label>
+                  <input
+                    id="location"
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="e.g., India, April 2024"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* 6. Content */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label htmlFor="content" className="block text-sm font-medium text-gray-700">
@@ -487,37 +565,20 @@ export default function NewsFormPage() {
                 </div>
 
                 {!isPreviewMode ? (
-                  <textarea
-                    id="content"
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    placeholder="Enter the main content for this news article"
-                    rows={12}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none resize-none font-mono text-sm"
-                  />
+                  <div className="border border-gray-300 rounded-lg overflow-hidden">
+                    <RichTextEditor
+                      value={formData.content}
+                      onChange={(value) => setFormData({ ...formData, content: value })}
+                      placeholder="Enter the main content for this news article"
+                    />
+                  </div>
                 ) : (
-                  <div className="w-full min-h-[300px] px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
-                    <div className="prose prose-sm max-w-none">
+                  <div className="w-full min-h-[300px] px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 overflow-auto">
+                    <div className="prose prose-slate max-w-none">
                       {formData.content ? (
                         <div
-                          className="whitespace-pre-wrap break-words"
                           dangerouslySetInnerHTML={{
-                            __html: formData.content
-                              // Images: ![alt](url)
-                              .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded-lg my-2" />')
-                              // Links: [text](url)
-                              .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
-                              // Bold: **text**
-                              .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold">$1</strong>')
-                              // Italic: *text*
-                              .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
-                              // Headings
-                              .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
-                              .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-3 mb-2">$1</h2>')
-                              .replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-2 mb-1">$1</h3>')
-                              // Line breaks
-                              .replace(/\n\n/g, '</p><p class="mb-2">')
-                              .replace(/^(.+)$/gm, '<p class="mb-2">$1</p>')
+                            __html: marked.parse(formData.content) as string
                           }}
                         />
                       ) : (
@@ -529,7 +590,7 @@ export default function NewsFormPage() {
                 <p className="text-xs text-gray-500 mt-1">Supports markdown formatting</p>
               </div>
 
-              {/* 6. SEO Section */}
+              {/* 7. SEO Section */}
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">seo</h3>
 
@@ -567,6 +628,21 @@ export default function NewsFormPage() {
                   </div>
 
                   <div>
+                    <label htmlFor="seoMetaImageId" className="block text-sm font-medium text-gray-700 mb-2">
+                      metaImage
+                    </label>
+                    <input
+                      id="seoMetaImageId"
+                      type="number"
+                      value={formData.seoMetaImageId}
+                      onChange={(e) => setFormData({ ...formData, seoMetaImageId: e.target.value })}
+                      placeholder="Enter meta image ID from media library"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Image ID from Strapi media library</p>
+                  </div>
+
+                  <div>
                     <label htmlFor="seoKeywords" className="block text-sm font-medium text-gray-700 mb-2">
                       keywords
                     </label>
@@ -579,10 +655,121 @@ export default function NewsFormPage() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
                     />
                   </div>
+
+                  {/* metaSocial Section */}
+                  <div className="col-span-2 border-t border-gray-200 pt-4 mt-2">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="text-base font-medium text-gray-900">metaSocial ({metaSocial.length})</h4>
+                        <p className="text-sm text-gray-500 mt-1">Social media metadata for sharing</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMetaSocial([...metaSocial, { socialNetwork: 'Facebook', title: '', description: '', imageId: '' }])}
+                        className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add an entry
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {metaSocial.map((social, index) => (
+                        <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    socialNetwork <span className="text-red-500">*</span>
+                                  </label>
+                                  <select
+                                    value={social.socialNetwork}
+                                    onChange={(e) => {
+                                      const updated = [...metaSocial];
+                                      updated[index].socialNetwork = e.target.value;
+                                      setMetaSocial(updated);
+                                    }}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
+                                  >
+                                    <option value="Facebook">Facebook</option>
+                                    <option value="Twitter">Twitter</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    title <span className="text-red-500">*</span>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={social.title}
+                                    onChange={(e) => {
+                                      const updated = [...metaSocial];
+                                      updated[index].title = e.target.value;
+                                      setMetaSocial(updated);
+                                    }}
+                                    placeholder="max. 60 characters"
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  description <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                  value={social.description}
+                                  onChange={(e) => {
+                                    const updated = [...metaSocial];
+                                    updated[index].description = e.target.value;
+                                    setMetaSocial(updated);
+                                  }}
+                                  placeholder="max. 65 characters"
+                                  rows={2}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none resize-none"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  image
+                                </label>
+                                <input
+                                  type="number"
+                                  value={social.imageId}
+                                  onChange={(e) => {
+                                    const updated = [...metaSocial];
+                                    updated[index].imageId = e.target.value;
+                                    setMetaSocial(updated);
+                                  }}
+                                  placeholder="Image ID from media library"
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = metaSocial.filter((_, i) => i !== index);
+                                setMetaSocial(updated);
+                              }}
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                              title="Remove entry"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* 7. CategoryChip - Last as per Strapi */}
+              {/* 8. CategoryChip - Last as per Strapi */}
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">CategoryChip</h3>
                 <p className="text-sm text-gray-500 mb-4">Category badge with icon and text label</p>

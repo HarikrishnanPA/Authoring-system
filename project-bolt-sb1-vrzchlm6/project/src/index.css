@@ -16,3 +16,49 @@
   --gray-100: #F7FAFC;
   --gray-50: #FAFBFC;
 }
+
+/* Markdown Editor Styles */
+.markdown-editor {
+  display: flex;
+  flex-direction: column;
+  background: white;
+}
+
+.markdown-editor .toolbar {
+  background-color: #F7FAFC;
+  border-bottom: 1px solid #E2E8F0;
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.markdown-editor .toolbar button {
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  color: #4A5568;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.markdown-editor .toolbar button:hover {
+  background-color: #E2E8F0;
+  color: #FF4D6D;
+}
+
+.markdown-editor textarea {
+  min-height: 300px;
+  padding: 16px;
+  border: none;
+  outline: none;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.markdown-editor textarea::placeholder {
+  color: #A0AEC0;
+}
