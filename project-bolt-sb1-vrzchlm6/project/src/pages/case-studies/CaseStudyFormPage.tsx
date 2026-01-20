@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Save, Eye, Plus, Trash2, MoveUp, MoveDown, FileText, EyeIcon } from 'lucide-react';
 import { Sidebar } from '@/components/layout';
 import { RichTextEditor } from '@/components/editor';
-import { ApiService } from '@/lib/api';
+import { ApiService, MediaFile } from '@/lib/api';
+import MediaPicker from '@/components/media/MediaPicker';
 import { marked } from 'marked';
 
 // Configure marked to use GitHub Flavored Markdown
@@ -27,7 +28,7 @@ export default function CaseStudyFormPage() {
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
-    heroImageId: '',
+    heroImage: null as MediaFile | null,
     shortDescription: '',
     content: '',
     formTitle: '',
@@ -35,14 +36,14 @@ export default function CaseStudyFormPage() {
     seoTitle: '',
     seoDescription: '',
     seoKeywords: '',
-    seoMetaImageId: '',
+    seoMetaImage: null as MediaFile | null,
   });
 
   const [metaSocial, setMetaSocial] = useState<Array<{
     socialNetwork: string;
     title: string;
     description: string;
-    imageId: string;
+    image: MediaFile | null;
   }>>([]);
 
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([
@@ -87,7 +88,10 @@ export default function CaseStudyFormPage() {
         setFormData({
           title,
           slug,
-          heroImageId: caseStudy.attributes.HeroImage?.data?.id?.toString() || '',
+          heroImage: caseStudy.attributes.HeroImage?.data ? {
+            id: caseStudy.attributes.HeroImage.data.id,
+            ...caseStudy.attributes.HeroImage.data.attributes,
+          } : null,
           shortDescription: caseStudy.attributes.ShortDescription || '',
           content: caseStudy.attributes.Content || '',
           formTitle: caseStudy.attributes.FormTitle || '',
@@ -95,7 +99,10 @@ export default function CaseStudyFormPage() {
           seoTitle: caseStudy.attributes.seo?.metaTitle || '',
           seoDescription: caseStudy.attributes.seo?.metaDescription || '',
           seoKeywords: caseStudy.attributes.seo?.keywords || '',
-          seoMetaImageId: caseStudy.attributes.seo?.metaImage?.data?.id?.toString() || '',
+          seoMetaImage: caseStudy.attributes.seo?.metaImage?.data ? {
+            id: caseStudy.attributes.seo.metaImage.data.id,
+            ...caseStudy.attributes.seo.metaImage.data.attributes,
+          } : null,
         });
 
         // Load metaSocial data
@@ -105,7 +112,10 @@ export default function CaseStudyFormPage() {
             socialNetwork: social.socialNetwork || '',
             title: social.title || '',
             description: social.description || '',
-            imageId: social.image?.data?.id?.toString() || '',
+            image: social.image?.data ? {
+              id: social.image.data.id,
+              ...social.image.data.attributes,
+            } : null,
           }))
         );
 
@@ -165,8 +175,8 @@ export default function CaseStudyFormPage() {
       };
 
       // Add HeroImage if set
-      if (formData.heroImageId && formData.heroImageId !== '') {
-        payload.HeroImage = parseInt(formData.heroImageId);
+      if (formData.heroImage) {
+        payload.HeroImage = formData.heroImage.id;
       }
 
       // Add breadcrumbs if not empty
@@ -182,8 +192,8 @@ export default function CaseStudyFormPage() {
       };
 
       // Add metaImage if set
-      if (formData.seoMetaImageId && formData.seoMetaImageId !== '') {
-        seoPayload.metaImage = parseInt(formData.seoMetaImageId);
+      if (formData.seoMetaImage) {
+        seoPayload.metaImage = formData.seoMetaImage.id;
       }
 
       // Add metaSocial if set
@@ -194,14 +204,35 @@ export default function CaseStudyFormPage() {
             socialNetwork: social.socialNetwork,
             title: social.title,
             description: social.description,
-            image: social.imageId ? parseInt(social.imageId) : undefined,
+            image: social.image ? social.image.id : undefined,
           }));
       }
 
       payload.seo = seoPayload;
 
-      console.log('Payload:', payload);
-      alert(`Case study ${shouldPublish ? 'published' : 'saved as draft'} successfully!`);
+      // Set publishedAt based on draft or publish
+      if (shouldPublish) {
+        payload.publishedAt = new Date().toISOString();
+        console.log('Setting as PUBLISHED with timestamp:', payload.publishedAt);
+      } else {
+        payload.publishedAt = null;
+        console.log('Setting as DRAFT with publishedAt: null');
+      }
+
+      console.log('Full Payload:', JSON.stringify(payload, null, 2));
+      console.log('shouldPublish:', shouldPublish);
+      console.log('id:', id);
+
+      if (id) {
+        const response = await ApiService.updateCaseStudy(parseInt(id), payload);
+        console.log('Update response:', response);
+        alert('Case study updated successfully!');
+      } else {
+        const response = await ApiService.createCaseStudy(payload);
+        console.log('Create response:', response);
+        alert('Case study created successfully!');
+      }
+
       navigate('/case-studies');
     } catch (error) {
       console.error('Error saving case study:', error);
@@ -213,6 +244,9 @@ export default function CaseStudyFormPage() {
 
   const handlePublish = () => handleSave(true);
   const handleDraft = () => handleSave(false);
+
+
+
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -395,20 +429,11 @@ export default function CaseStudyFormPage() {
               </div>
 
               {/* 3. HeroImage */}
-              <div>
-                <label htmlFor="heroImageId" className="block text-sm font-medium text-gray-700 mb-2">
-                  HeroImage <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="heroImageId"
-                  type="number"
-                  value={formData.heroImageId}
-                  onChange={(e) => setFormData({ ...formData, heroImageId: e.target.value })}
-                  placeholder="Enter image ID from media library"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                />
-                <p className="text-xs text-gray-500 mt-1">Image ID from Strapi media library</p>
-              </div>
+              <MediaPicker
+                label="HeroImage *"
+                value={formData.heroImage}
+                onChange={(file) => setFormData({ ...formData, heroImage: file })}
+              />
 
               {/* 4. ShortDescription */}
               <div>
@@ -557,20 +582,11 @@ export default function CaseStudyFormPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="seoMetaImageId" className="block text-sm font-medium text-gray-700 mb-2">
-                      metaImage
-                    </label>
-                    <input
-                      id="seoMetaImageId"
-                      type="number"
-                      value={formData.seoMetaImageId}
-                      onChange={(e) => setFormData({ ...formData, seoMetaImageId: e.target.value })}
-                      placeholder="Enter meta image ID from media library"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Image ID from Strapi media library</p>
-                  </div>
+                  <MediaPicker
+                    label="metaImage"
+                    value={formData.seoMetaImage}
+                    onChange={(file) => setFormData({ ...formData, seoMetaImage: file })}
+                  />
 
                   <div>
                     <label htmlFor="seoKeywords" className="block text-sm font-medium text-gray-700 mb-2">
@@ -595,7 +611,7 @@ export default function CaseStudyFormPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setMetaSocial([...metaSocial, { socialNetwork: 'Facebook', title: '', description: '', imageId: '' }])}
+                        onClick={() => setMetaSocial([...metaSocial, { socialNetwork: 'Facebook', title: '', description: '', image: null }])}
                         className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                       >
                         <Plus className="w-4 h-4" />
@@ -662,22 +678,15 @@ export default function CaseStudyFormPage() {
                                 />
                               </div>
 
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                  image
-                                </label>
-                                <input
-                                  type="number"
-                                  value={social.imageId}
-                                  onChange={(e) => {
-                                    const updated = [...metaSocial];
-                                    updated[index].imageId = e.target.value;
-                                    setMetaSocial(updated);
-                                  }}
-                                  placeholder="Image ID from media library"
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                                />
-                              </div>
+                              <MediaPicker
+                                label="image"
+                                value={social.image}
+                                onChange={(file) => {
+                                  const updated = [...metaSocial];
+                                  updated[index].image = file;
+                                  setMetaSocial(updated);
+                                }}
+                              />
                             </div>
 
                             <button

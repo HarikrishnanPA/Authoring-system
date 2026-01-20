@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Grid } from 'lucide-react';
+import { LogOut, Grid, Image, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import { ApiService } from '@/lib/api';
@@ -82,13 +82,26 @@ export default function Sidebar() {
         <nav className="px-4 space-y-2">
           <button
             onClick={() => navigate('/overview')}
-            className={`w-full text-left px-4 py-3 text-base font-semibold rounded-2xl transition-all ${
+            className={`w-full text-left px-4 py-3 text-base font-semibold rounded-2xl transition-all flex items-center gap-3 ${
               isOverviewActive
                 ? 'bg-primary/10 text-primary'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-dark'
             }`}
           >
-            Overview
+            <LayoutDashboard className="w-5 h-5" />
+            <span>Overview</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/media')}
+            className={`w-full text-left px-4 py-3 text-base font-semibold rounded-2xl transition-all flex items-center gap-3 ${
+              location.pathname.startsWith('/media')
+                ? 'bg-primary/10 text-primary'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-dark'
+            }`}
+          >
+            <Image className="w-5 h-5" />
+            <span>Media Library</span>
           </button>
 
           <div className="pt-6">

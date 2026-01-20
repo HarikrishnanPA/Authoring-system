@@ -31,6 +31,7 @@ export default function CaseStudiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [filter, setFilter] = useState<'all' | 'published' | 'drafts'>('all');
 
   useEffect(() => {
     loadCaseStudies();
@@ -48,11 +49,20 @@ export default function CaseStudiesPage() {
     }
   };
 
-  const filteredCaseStudies = caseStudies.filter(
-    (study) =>
+  const filteredCaseStudies = caseStudies.filter((study) => {
+    // Search filter
+    const matchesSearch =
       study.attributes.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      study.attributes.ShortDescription.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      study.attributes.ShortDescription.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Draft filter
+    const matchesFilter =
+      filter === 'all' ||
+      (filter === 'published' && study.attributes.publishedAt !== null) ||
+      (filter === 'drafts' && study.attributes.publishedAt === null);
+    
+    return matchesSearch && matchesFilter;
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -182,6 +192,41 @@ export default function CaseStudiesPage() {
       
       viewMode={viewMode}
       onViewModeChange={setViewMode}
+      
+      headerContent={
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'all'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setFilter('published')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'published'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Published
+          </button>
+          <button
+            onClick={() => setFilter('drafts')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'drafts'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Drafts
+          </button>
+        </div>
+      }
     >
       {viewMode === 'grid' ? renderGrid() : renderList()}
     </PageLayout>

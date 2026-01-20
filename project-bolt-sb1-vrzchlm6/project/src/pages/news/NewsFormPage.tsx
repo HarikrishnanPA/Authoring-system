@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Save, Eye, Plus, Trash2, MoveUp, MoveDown, FileText, EyeIcon } from 'lucide-react';
 import { Sidebar } from '@/components/layout';
 import { RichTextEditor } from '@/components/editor';
-import { ApiService } from '@/lib/api';
+import { ApiService, MediaFile } from '@/lib/api';
+import MediaPicker from '@/components/media/MediaPicker';
 import { marked } from 'marked';
 
 // Configure marked to use GitHub Flavored Markdown
@@ -22,7 +23,6 @@ export default function NewsFormPage() {
   const { id } = useParams<{ id: string }>();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     shortDescription: '',
@@ -30,24 +30,21 @@ export default function NewsFormPage() {
     slug: '',
     location: '',
     timePeriod: '',
-    heroImageUrl: '',
-    heroImageId: '',
-    coverImageUrl: '',
-    coverImageId: '',
+    heroImage: null as MediaFile | null,
+    coverImage: null as MediaFile | null,
     categoryChipText: '',
-    categoryChipImageUrl: '',
-    categoryChipId: '',
+    categoryChipImage: null as MediaFile | null,
     seoTitle: '',
     seoDescription: '',
     seoKeywords: '',
-    seoMetaImageId: '',
+    seoMetaImage: null as MediaFile | null,
   });
 
   const [metaSocial, setMetaSocial] = useState<Array<{
     socialNetwork: string;
     title: string;
     description: string;
-    imageId: string;
+    image: MediaFile | null;
   }>>([]);
 
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([
@@ -116,17 +113,26 @@ export default function NewsFormPage() {
           slug,
           location: article.attributes.Location || '',
           timePeriod: article.attributes.TimePeriod || '',
-          heroImageUrl: article.attributes.HeroImage?.data?.attributes?.url || '',
-          heroImageId: article.attributes.HeroImage?.data?.id?.toString() || '',
-          coverImageUrl: article.attributes.CoverImage?.data?.attributes?.url || '',
-          coverImageId: article.attributes.CoverImage?.data?.id?.toString() || '',
+          heroImage: article.attributes.HeroImage?.data ? {
+            id: article.attributes.HeroImage.data.id,
+            ...article.attributes.HeroImage.data.attributes,
+          } : null,
+          coverImage: article.attributes.CoverImage?.data ? {
+            id: article.attributes.CoverImage.data.id,
+            ...article.attributes.CoverImage.data.attributes,
+          } : null,
           categoryChipText: article.attributes.CategoryChip?.ImageLink || '',
-          categoryChipImageUrl: article.attributes.CategoryChip?.Image?.data?.attributes?.url || '',
-          categoryChipId: article.attributes.CategoryChip?.data?.id?.toString() || '',
+          categoryChipImage: article.attributes.CategoryChip?.Image?.data ? {
+            id: article.attributes.CategoryChip.Image.data.id,
+            ...article.attributes.CategoryChip.Image.data.attributes,
+          } : null,
           seoTitle: article.attributes.seo?.metaTitle || '',
           seoDescription: article.attributes.seo?.metaDescription || '',
           seoKeywords: article.attributes.seo?.keywords || '',
-          seoMetaImageId: article.attributes.seo?.metaImage?.data?.id?.toString() || '',
+          seoMetaImage: article.attributes.seo?.metaImage?.data ? {
+            id: article.attributes.seo.metaImage.data.id,
+            ...article.attributes.seo.metaImage.data.attributes,
+          } : null,
         });
 
         // Load metaSocial data
@@ -136,7 +142,10 @@ export default function NewsFormPage() {
             socialNetwork: social.socialNetwork || '',
             title: social.title || '',
             description: social.description || '',
-            imageId: social.image?.data?.id?.toString() || '',
+            image: social.image?.data ? {
+              id: social.image.data.id,
+              ...social.image.data.attributes,
+            } : null,
           }))
         );
 
@@ -178,7 +187,6 @@ export default function NewsFormPage() {
 
   const handleSave = async (shouldPublish: boolean = false) => {
     setIsSaving(true);
-    setError(null);
     console.log('Publishing:', shouldPublish);
     
     try {
@@ -199,19 +207,19 @@ export default function NewsFormPage() {
       };
 
       // Add images if set
-      if (formData.heroImageId && formData.heroImageId !== '') {
-        payload.HeroImage = parseInt(formData.heroImageId);
+      if (formData.heroImage) {
+        payload.HeroImage = formData.heroImage.id;
       }
       
-      if (formData.coverImageId && formData.coverImageId !== '') {
-        payload.CoverImage = parseInt(formData.coverImageId);
+      if (formData.coverImage) {
+        payload.CoverImage = formData.coverImage.id;
       }
 
       // Add CategoryChip properly formatted if set
-      if (formData.categoryChipId && formData.categoryChipId !== '') {
+      if (formData.categoryChipImage) {
         payload.CategoryChip = {
           ImageLink: formData.categoryChipText || '',
-          Image: parseInt(formData.categoryChipId),
+          Image: formData.categoryChipImage.id,
         };
       }
 
@@ -228,8 +236,8 @@ export default function NewsFormPage() {
       };
 
       // Add metaImage if set
-      if (formData.seoMetaImageId && formData.seoMetaImageId !== '') {
-        seoPayload.metaImage = parseInt(formData.seoMetaImageId);
+      if (formData.seoMetaImage) {
+        seoPayload.metaImage = formData.seoMetaImage.id;
       }
 
       // Add metaSocial if set
@@ -240,19 +248,31 @@ export default function NewsFormPage() {
             socialNetwork: social.socialNetwork,
             title: social.title,
             description: social.description,
-            image: social.imageId ? parseInt(social.imageId) : undefined,
+            image: social.image ? social.image.id : undefined,
           }));
       }
 
       payload.seo = seoPayload;
 
-      console.log('Payload:', payload);
+      // Set publishedAt based on draft or publish
+      if (shouldPublish) {
+        payload.publishedAt = new Date().toISOString();
+        console.log('Setting as PUBLISHED with timestamp:', payload.publishedAt);
+      } else {
+        payload.publishedAt = null;
+        console.log('Setting as DRAFT with publishedAt: null');
+      }
+
+      console.log('Full Payload:', JSON.stringify(payload, null, 2));
+      console.log('shouldPublish:', shouldPublish);
 
       if (isNewNews) {
-        await ApiService.createNewsArticle(payload);
+        const response = await ApiService.createNewsArticle(payload);
+        console.log('Create response:', response);
         alert('News article created successfully!');
       } else {
-        await ApiService.updateNewsArticle(parseInt(id!), payload);
+        const response = await ApiService.updateNewsArticle(parseInt(id!), payload);
+        console.log('Update response:', response);
         alert('News article updated successfully!');
       }
 
@@ -267,6 +287,9 @@ export default function NewsFormPage() {
 
   const handlePublish = () => handleSave(true);
   const handleDraft = () => handleSave(false);
+
+
+
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -453,35 +476,17 @@ export default function NewsFormPage() {
 
               {/* 3. HeroImage & CoverImage */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="heroImageId" className="block text-sm font-medium text-gray-700 mb-2">
-                    HeroImage <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="heroImageId"
-                    type="number"
-                    value={formData.heroImageId}
-                    onChange={(e) => setFormData({ ...formData, heroImageId: e.target.value })}
-                    placeholder="Enter image ID from media library"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Image ID from Strapi media library</p>
-                </div>
+                <MediaPicker
+                  label="HeroImage *"
+                  value={formData.heroImage}
+                  onChange={(file) => setFormData({ ...formData, heroImage: file })}
+                />
 
-                <div>
-                  <label htmlFor="coverImageId" className="block text-sm font-medium text-gray-700 mb-2">
-                    CoverImage
-                  </label>
-                  <input
-                    id="coverImageId"
-                    type="number"
-                    value={formData.coverImageId}
-                    onChange={(e) => setFormData({ ...formData, coverImageId: e.target.value })}
-                    placeholder="Enter image ID from media library"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Image ID from Strapi media library</p>
-                </div>
+                <MediaPicker
+                  label="CoverImage"
+                  value={formData.coverImage}
+                  onChange={(file) => setFormData({ ...formData, coverImage: file })}
+                />
               </div>
 
               {/* 4. ShortDescription */}
@@ -627,20 +632,11 @@ export default function NewsFormPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="seoMetaImageId" className="block text-sm font-medium text-gray-700 mb-2">
-                      metaImage
-                    </label>
-                    <input
-                      id="seoMetaImageId"
-                      type="number"
-                      value={formData.seoMetaImageId}
-                      onChange={(e) => setFormData({ ...formData, seoMetaImageId: e.target.value })}
-                      placeholder="Enter meta image ID from media library"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Image ID from Strapi media library</p>
-                  </div>
+                  <MediaPicker
+                    label="metaImage"
+                    value={formData.seoMetaImage}
+                    onChange={(file) => setFormData({ ...formData, seoMetaImage: file })}
+                  />
 
                   <div>
                     <label htmlFor="seoKeywords" className="block text-sm font-medium text-gray-700 mb-2">
@@ -665,7 +661,7 @@ export default function NewsFormPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setMetaSocial([...metaSocial, { socialNetwork: 'Facebook', title: '', description: '', imageId: '' }])}
+                        onClick={() => setMetaSocial([...metaSocial, { socialNetwork: 'Facebook', title: '', description: '', image: null }])}
                         className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                       >
                         <Plus className="w-4 h-4" />
@@ -732,22 +728,15 @@ export default function NewsFormPage() {
                                 />
                               </div>
 
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                  image
-                                </label>
-                                <input
-                                  type="number"
-                                  value={social.imageId}
-                                  onChange={(e) => {
-                                    const updated = [...metaSocial];
-                                    updated[index].imageId = e.target.value;
-                                    setMetaSocial(updated);
-                                  }}
-                                  placeholder="Image ID from media library"
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                                />
-                              </div>
+                              <MediaPicker
+                                label="image"
+                                value={social.image}
+                                onChange={(file) => {
+                                  const updated = [...metaSocial];
+                                  updated[index].image = file;
+                                  setMetaSocial(updated);
+                                }}
+                              />
                             </div>
 
                             <button
@@ -775,20 +764,11 @@ export default function NewsFormPage() {
                 <p className="text-sm text-gray-500 mb-4">Category badge with icon and text label</p>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="categoryChipId" className="block text-sm font-medium text-gray-700 mb-2">
-                      Image ID <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="categoryChipId"
-                      type="number"
-                      value={formData.categoryChipId}
-                      onChange={(e) => setFormData({ ...formData, categoryChipId: e.target.value })}
-                      placeholder="Enter category icon ID"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Icon/image ID from Strapi media library</p>
-                  </div>
+                  <MediaPicker
+                    label="Category Image *"
+                    value={formData.categoryChipImage}
+                    onChange={(file) => setFormData({ ...formData, categoryChipImage: file })}
+                  />
 
                   <div>
                     <label htmlFor="categoryChipText" className="block text-sm font-medium text-gray-700 mb-2">

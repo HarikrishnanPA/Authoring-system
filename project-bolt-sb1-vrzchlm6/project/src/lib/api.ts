@@ -35,6 +35,31 @@ export interface LoginResponse {
   };
 }
 
+export interface MediaFormat {
+  url: string;
+  width: number;
+  height: number;
+}
+
+export interface MediaFile {
+  id: number;
+  name: string;
+  alternativeText: string | null;
+  caption: string | null;
+  mime: string;
+  width: number;
+  height: number;
+  url: string;
+  formats: {
+    thumbnail?: MediaFormat;
+    small?: MediaFormat;
+    medium?: MediaFormat;
+    large?: MediaFormat;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export class ApiService {
   static async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await fetch(`${API_BASE_URL}/admin/login`, {
@@ -118,7 +143,7 @@ export class ApiService {
   }
 
   static async getCaseStudies(): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/api/case-studies?populate=*`, {
+    const response = await fetch(`${API_BASE_URL}/api/case-studies?populate=*&publicationState=preview`, {
       headers: {
         'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
         'Content-Type': 'application/json',
@@ -147,8 +172,44 @@ export class ApiService {
     return response.json();
   }
 
+  static async createCaseStudy(data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/case-studies`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to create case study');
+    }
+
+    return response.json();
+  }
+
+  static async updateCaseStudy(id: number, data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/case-studies/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to update case study');
+    }
+
+    return response.json();
+  }
+
   static async getNews(): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/api/news-lists?populate=*`, {
+    const response = await fetch(`${API_BASE_URL}/api/news-lists?populate=*&publicationState=preview`, {
       headers: {
         'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
         'Content-Type': 'application/json',
@@ -214,7 +275,7 @@ export class ApiService {
   }
 
   static async getServicesDetail(): Promise<ServicesDetailResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/services-detail?populate=*`, {
+    const response = await fetch(`${API_BASE_URL}/api/services-detail?populate=*&publicationState=preview`, {
       headers: {
         'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
         'Content-Type': 'application/json',
@@ -232,7 +293,7 @@ export class ApiService {
     // Since the endpoint is /api/services-detail, we assume it's a single type or collection.
     // Based on the list response, it returns an array. So we can filter by ID.
     // Strapi filter syntax: filters[id][$eq]=value
-    const response = await fetch(`${API_BASE_URL}/api/services-detail?filters[id][$eq]=${id}&populate=*`, {
+    const response = await fetch(`${API_BASE_URL}/api/services-detail?filters[id][$eq]=${id}&populate=*&publicationState=preview`, {
       headers: {
         'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
         'Content-Type': 'application/json',
@@ -278,6 +339,35 @@ export class ApiService {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error?.message || 'Failed to update service');
+    }
+
+    return response.json();
+  }
+
+  // Media Library
+  static async getMediaFiles(): Promise<MediaFile[]> {
+    const response = await fetch(`${API_BASE_URL}/api/upload/files?sort=createdAt:desc`, {
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch media files');
+    }
+
+    return response.json();
+  }
+
+  static async getMediaFileById(id: number): Promise<MediaFile> {
+    const response = await fetch(`${API_BASE_URL}/api/upload/files/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch media file');
     }
 
     return response.json();

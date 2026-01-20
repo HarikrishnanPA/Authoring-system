@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Save, Eye, Plus, Trash } from 'lucide-react';
+import { ChevronRight, Save, Eye, Plus, Trash, MoveUp, MoveDown, FileText, EyeIcon } from 'lucide-react';
 import { Sidebar } from '@/components/layout';
-import { ApiService } from '@/lib/api';
+import { RichTextEditor } from '@/components/editor';
+import { ApiService, MediaFile } from '@/lib/api';
+import MediaPicker from '@/components/media/MediaPicker';
+import { marked } from 'marked';
+
+// Configure marked to use GitHub Flavored Markdown
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
 
 interface HeroCardItem {
   Title: string;
@@ -71,6 +80,7 @@ export default function ServiceFormPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -101,9 +111,9 @@ export default function ServiceFormPage() {
 
     BreadCrumb: [] as BreadCrumbItem[],
     
-    // Using number for image IDs as requested
-    Image: 0,
-    SectionThreeImage: 0,
+    // Using MediaFile for images
+    Image: null as MediaFile | null,
+    SectionThreeImage: null as MediaFile | null,
 
     HeroCard: [] as HeroCardItem[],
     SectionOneCard: [] as SectionOneCardItem[],
@@ -157,8 +167,14 @@ export default function ServiceFormPage() {
               SectionSevenTitle: service.attributes.SectionSevenTitle || '',
               
               BreadCrumb: service.attributes.BreadCrumb || [],
-              Image: (service.attributes.Image?.data as any)?.id || 0,
-              SectionThreeImage: (service.attributes.SectionThreeImage?.data as any)?.id || 0,
+              Image: service.attributes.Image?.data ? {
+                id: (service.attributes.Image.data as any).id,
+                ...(service.attributes.Image.data as any).attributes,
+              } : null,
+              SectionThreeImage: service.attributes.SectionThreeImage?.data ? {
+                id: (service.attributes.SectionThreeImage.data as any).id,
+                ...(service.attributes.SectionThreeImage.data as any).attributes,
+              } : null,
               
               HeroCard: service.attributes.HeroCard || [],
               SectionOneCard: service.attributes.SectionOneCard || [],
@@ -228,6 +244,16 @@ export default function ServiceFormPage() {
     }));
   };
 
+  const moveBreadcrumb = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= formData.BreadCrumb.length) return;
+
+    const newBreadcrumbs = [...formData.BreadCrumb];
+    [newBreadcrumbs[index], newBreadcrumbs[newIndex]] = [newBreadcrumbs[newIndex], newBreadcrumbs[index]];
+    setFormData({ ...formData, BreadCrumb: newBreadcrumbs });
+  };
+
+
   const handleSave = async (shouldPublish: boolean = false) => {
     setIsSaving(true);
     setError(null);
@@ -236,15 +262,26 @@ export default function ServiceFormPage() {
       // Prepare payload and exclude empty image IDs
       const payload = { ...formData };
       
-      // Remove image fields if they're 0 (not set)
-      if (payload.Image === 0) {
+      // Handle image fields - extract ID if set, otherwise remove
+      if (formData.Image) {
+        (payload as any).Image = formData.Image.id;
+      } else {
         delete (payload as any).Image;
       }
-      if (payload.SectionThreeImage === 0) {
+      if (formData.SectionThreeImage) {
+        (payload as any).SectionThreeImage = formData.SectionThreeImage.id;
+      } else {
         delete (payload as any).SectionThreeImage;
       }
       
       console.log('Publishing:', shouldPublish);
+      
+      // Set publishedAt based on draft or publish
+      if (shouldPublish) {
+        (payload as any).publishedAt = new Date().toISOString();
+      } else {
+        (payload as any).publishedAt = null;
+      }
       
       if (isEditMode && id) {
         // Update existing service
@@ -340,7 +377,77 @@ export default function ServiceFormPage() {
             {!isLoading && (
 
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Breadcrumbs - FIRST */}
+                {renderSectionHeader("Breadcrumbs", () => addArrayItem('BreadCrumb', { Label: '', Link: '', isMegamenu: false }), "Add Breadcrumb")}
+                <div className="space-y-4">
+                  {formData.BreadCrumb.map((item, index) => (
+                    <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex gap-4 items-start">
+                      {/* Move buttons */}
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveBreadcrumb(index, 'up')}
+                          disabled={index === 0}
+                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move up"
+                        >
+                          <MoveUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveBreadcrumb(index, 'down')}
+                          disabled={index === formData.BreadCrumb.length - 1}
+                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move down"
+                        >
+                          <MoveDown className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Fields with labels */}
+                      <div className="flex-1 grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Label
+                          </label>
+                          <input
+                            type="text"
+                            value={item.Label}
+                            onChange={(e) => updateArrayItem('BreadCrumb', index, 'Label', e.target.value)}
+                            placeholder="e.g., Services"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Link
+                          </label>
+                          <input
+                            type="text"
+                            value={item.Link}
+                            onChange={(e) => updateArrayItem('BreadCrumb', index, 'Link', e.target.value)}
+                            placeholder="e.g., /services"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Delete button */}
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem('BreadCrumb', index)}
+                        className="p-2 text-red-600 hover:text-red-800 transition-colors"
+                        title="Remove breadcrumb"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Basic Fields - Slug, Title, Description, CTA, Image */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-200 pt-6 mt-8">
                   <div>
                     <label className={labelClass}>Slug</label>
                     <input type="text" name="Slug" value={formData.Slug} onChange={handleChange} required className={inputClass} placeholder="service-slug" />
@@ -350,8 +457,59 @@ export default function ServiceFormPage() {
                     <input type="text" name="Title" value={formData.Title} onChange={handleChange} required className={inputClass} placeholder="Service Title" />
                   </div>
                   <div className="md:col-span-2">
-                    <label className={labelClass}>Description (Markdown)</label>
-                    <textarea name="Description" rows={4} value={formData.Description} onChange={handleChange} className={inputClass} placeholder="Service description..." />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className={labelClass}>Description (Markdown)</label>
+                      <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                        <button
+                          type="button"
+                          onClick={() => setIsPreviewMode(false)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                            !isPreviewMode
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <FileText className="w-4 h-4" />
+                          Markdown
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsPreviewMode(true)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                            isPreviewMode
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                          Preview
+                        </button>
+                      </div>
+                    </div>
+
+                    {!isPreviewMode ? (
+                      <div className="border border-gray-300 rounded-lg overflow-hidden">
+                        <RichTextEditor
+                          value={formData.Description}
+                          onChange={(value) => setFormData({ ...formData, Description: value })}
+                          placeholder="Enter service description in markdown format..."
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full min-h-[300px] px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 overflow-auto">
+                        <div className="prose prose-slate max-w-none">
+                          {formData.Description ? (
+                            <div
+                              dangerouslySetInnerHTML={{
+                                __html: marked.parse(formData.Description) as string
+                              }}
+                            />
+                          ) : (
+                            <p className="text-gray-400 italic">No content to preview</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className={labelClass}>CTA Text</label>
@@ -362,29 +520,12 @@ export default function ServiceFormPage() {
                     <input type="text" name="CTALink" value={formData.CTALink} onChange={handleChange} className={inputClass} placeholder="/contact" />
                   </div>
                   <div>
-                    <label className={labelClass}>Main Image ID</label>
-                    <input type="number" name="Image" value={formData.Image} onChange={handleChange} className={inputClass} placeholder="0" />
+                    <MediaPicker
+                      label="Main Image"
+                      value={formData.Image}
+                      onChange={(file) => setFormData({ ...formData, Image: file })}
+                    />
                   </div>
-                </div>
-
-                {/* Breadcrumbs */}
-                {renderSectionHeader("Breadcrumbs", () => addArrayItem('BreadCrumb', { Label: '', Link: '', isMegamenu: false }), "Add Breadcrumb")}
-                <div className="space-y-4">
-                  {formData.BreadCrumb.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
-                        <input placeholder="Label" value={item.Label} onChange={(e) => updateArrayItem('BreadCrumb', index, 'Label', e.target.value)} className={inputClass} />
-                        <input placeholder="Link" value={item.Link} onChange={(e) => updateArrayItem('BreadCrumb', index, 'Link', e.target.value)} className={inputClass} />
-                        <label className="flex items-center space-x-2 mt-3">
-                          <input type="checkbox" checked={item.isMegamenu} onChange={(e) => updateArrayItem('BreadCrumb', index, 'isMegamenu', e.target.checked)} className="rounded text-gray-900 focus:ring-gray-900 h-4 w-4" />
-                          <span className="text-sm text-gray-700">Is Megamenu</span>
-                        </label>
-                      </div>
-                      <button type="button" onClick={() => removeArrayItem('BreadCrumb', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
                 </div>
 
                 {/* Hero Cards */}
@@ -468,9 +609,11 @@ export default function ServiceFormPage() {
                 {renderSectionHeader("Section Three")}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <input placeholder="Title" name="SectionThreeTitle" value={formData.SectionThreeTitle} onChange={handleChange} className={inputClass} />
-                  <div>
-                    <input type="number" name="SectionThreeImage" value={formData.SectionThreeImage} onChange={handleChange} className={inputClass} placeholder="Image ID" />
-                  </div>
+                  <MediaPicker
+                    label="Section Three Image"
+                    value={formData.SectionThreeImage}
+                    onChange={(file) => setFormData({ ...formData, SectionThreeImage: file })}
+                  />
                 </div>
 
                 <div className="flex justify-between items-center mb-4 border-t pt-4 border-gray-100">
@@ -513,6 +656,28 @@ export default function ServiceFormPage() {
                         <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('SectionFourCard', index, 'Description', e.target.value)} className={inputClass} />
                       </div>
                       <button type="button" onClick={() => removeArrayItem('SectionFourCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* List Items */}
+                {renderSectionHeader("List Items", () => addArrayItem('ListItems', { PrimaryTag: '', Title: '', Description: '', SecondaryTag: '', AlignImageToLeft: false }), "Add List Item")}
+                <div className="space-y-4">
+                  {formData.ListItems.map((item, index) => (
+                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+                        <input placeholder="Primary Tag" value={item.PrimaryTag} onChange={(e) => updateArrayItem('ListItems', index, 'PrimaryTag', e.target.value)} className={inputClass} />
+                        <input placeholder="Secondary Tag" value={item.SecondaryTag} onChange={(e) => updateArrayItem('ListItems', index, 'SecondaryTag', e.target.value)} className={inputClass} />
+                        <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('ListItems', index, 'Title', e.target.value)} className={inputClass} />
+                        <label className="flex items-center space-x-2 mt-3">
+                          <input type="checkbox" checked={item.AlignImageToLeft} onChange={(e) => updateArrayItem('ListItems', index, 'AlignImageToLeft', e.target.checked)} className="rounded text-gray-900 focus:ring-gray-900 h-4 w-4" />
+                          <span className="text-sm text-gray-700">Align Image Left</span>
+                        </label>
+                        <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('ListItems', index, 'Description', e.target.value)} className={`${inputClass} md:col-span-2`} />
+                      </div>
+                      <button type="button" onClick={() => removeArrayItem('ListItems', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
                         <Trash className="w-4 h-4" />
                       </button>
                     </div>
@@ -595,33 +760,11 @@ export default function ServiceFormPage() {
                   ))}
                 </div>
 
-                {/* CTA Form */}
+                {/* CTA Form - LAST */}
                 {renderSectionHeader("CTA Form Details")}
                 <div className="grid grid-cols-1 gap-6">
                   <input placeholder="Title" value={formData.CTAForm.Title} onChange={(e) => handleNestedChange('CTAForm', 'Title', e.target.value)} className={inputClass} />
                   <textarea placeholder="Description" value={formData.CTAForm.Description} onChange={(e) => handleNestedChange('CTAForm', 'Description', e.target.value)} className={inputClass} />
-                </div>
-
-                {/* List Items */}
-                {renderSectionHeader("List Items", () => addArrayItem('ListItems', { PrimaryTag: '', Title: '', Description: '', SecondaryTag: '', AlignImageToLeft: false }), "Add List Item")}
-                <div className="space-y-4">
-                  {formData.ListItems.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                        <input placeholder="Primary Tag" value={item.PrimaryTag} onChange={(e) => updateArrayItem('ListItems', index, 'PrimaryTag', e.target.value)} className={inputClass} />
-                        <input placeholder="Secondary Tag" value={item.SecondaryTag} onChange={(e) => updateArrayItem('ListItems', index, 'SecondaryTag', e.target.value)} className={inputClass} />
-                        <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('ListItems', index, 'Title', e.target.value)} className={inputClass} />
-                        <label className="flex items-center space-x-2 mt-3">
-                          <input type="checkbox" checked={item.AlignImageToLeft} onChange={(e) => updateArrayItem('ListItems', index, 'AlignImageToLeft', e.target.checked)} className="rounded text-gray-900 focus:ring-gray-900 h-4 w-4" />
-                          <span className="text-sm text-gray-700">Align Image Left</span>
-                        </label>
-                        <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('ListItems', index, 'Description', e.target.value)} className={`${inputClass} md:col-span-2`} />
-                      </div>
-                      <button type="button" onClick={() => removeArrayItem('ListItems', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
                 </div>
 
               </div>

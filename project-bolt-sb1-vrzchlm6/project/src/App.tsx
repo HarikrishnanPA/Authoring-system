@@ -11,6 +11,7 @@ import CaseStudyFormPage from './pages/case-studies/CaseStudyFormPage';
 import NewsPage from './pages/news/NewsPage';
 import NewsDetailPage from './pages/news/NewsDetailPage';
 import NewsFormPage from './pages/news/NewsFormPage';
+import MediaLibraryPage from './pages/media/MediaLibraryPage';
 import ArticlesPage from './pages/placeholder/ArticlesPage';
 import PortfoliosPage from './pages/placeholder/PortfoliosPage';
 import BlogsPage from './pages/placeholder/BlogsPage';
@@ -149,6 +150,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <NewsDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/media"
+        element={
+          <ProtectedRoute>
+            <MediaLibraryPage />
           </ProtectedRoute>
         }
       />
