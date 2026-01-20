@@ -269,14 +269,14 @@ export default function MediaLibraryPage({
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Preview</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600 w-20">Preview</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Name</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Dimensions</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Type</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Date</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600 w-32">Dimensions</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600 w-24">Type</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600 w-28">Date</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -301,10 +301,10 @@ export default function MediaLibraryPage({
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                      <td className="px-6 py-4 overflow-hidden">
+                        <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
                         {file.alternativeText && (
-                          <p className="text-xs text-gray-500 mt-0.5">{file.alternativeText}</p>
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">{file.alternativeText}</p>
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{file.width} × {file.height}</td>
