@@ -226,10 +226,10 @@ export default function MediaLibraryPage({
               </div>
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-full hover:bg-primary-hover transition-colors font-semibold shadow-sm"
               >
                 <Plus className="w-5 h-5" />
-                Add new assets
+                <span>Add new assets</span>
               </button>
             </div>
 

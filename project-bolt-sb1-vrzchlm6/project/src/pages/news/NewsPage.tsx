@@ -228,7 +228,7 @@ export default function NewsPage() {
     <PageLayout
       title="News & Articles"
       description="Latest news and updates from Tarento"
-      actionLabel="Add New"
+      actionLabel="Create new entry"
       onAction={() => navigate('/news/new')}
       isLoading={isLoading}
       emptyState={filteredNews.length === 0 ? emptyState : undefined}

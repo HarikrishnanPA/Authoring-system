@@ -181,7 +181,7 @@ export default function CaseStudiesPage() {
     <PageLayout
       title="Case Studies"
       description="Success stories and customer insights"
-      actionLabel="Add New"
+      actionLabel="Create new entry"
       onAction={() => navigate('/case-studies/new')}
       isLoading={isLoading}
       emptyState={filteredCaseStudies.length === 0 ? emptyState : undefined}

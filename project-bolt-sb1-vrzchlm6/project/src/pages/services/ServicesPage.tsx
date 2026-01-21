@@ -159,7 +159,7 @@ export default function ServicesPage() {
     <PageLayout
       title="Services"
       description="Manage your service orders and requests"
-      actionLabel="Create Service"
+      actionLabel="Create new entry"
       onAction={() => navigate('/services/new')}
       isLoading={isLoading}
       emptyState={filteredServices.length === 0 ? emptyState : undefined}
