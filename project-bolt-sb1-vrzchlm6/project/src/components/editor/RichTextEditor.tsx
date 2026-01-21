@@ -18,6 +18,8 @@ import {
   Heading6,
   ChevronDown,
 } from 'lucide-react';
+import { MediaFile, getImageUrl } from '@/lib/api';
+import MediaLibraryPage from '@/pages/media/MediaLibraryPage';
 
 interface RichTextEditorProps {
   value: string;
@@ -39,6 +41,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showHeadingDropdown, setShowHeadingDropdown] = useState(false);
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -80,6 +83,37 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       textarea.focus();
       textarea.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
+  };
+
+  // Insert image markdown at cursor position
+  const insertImageMarkdown = (file: MediaFile) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const imageUrl = getImageUrl(file.url);
+    const altText = file.alternativeText || file.name;
+    const markdown = `![${altText}](${imageUrl})`;
+
+    const start = textarea.selectionStart;
+    const newText = 
+      value.substring(0, start) + 
+      markdown + 
+      value.substring(start);
+    
+    onChange(newText);
+
+    // Set cursor position after the inserted markdown
+    setTimeout(() => {
+      const newCursorPos = start + markdown.length;
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  // Handle image selection from media picker
+  const handleImageSelect = (file: MediaFile) => {
+    insertImageMarkdown(file);
+    setShowImagePicker(false);
   };
 
   // Helper function to insert text at start of line
@@ -225,7 +259,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     {
       icon: <Image className="w-4 h-4" />,
       tooltip: 'Insert Image',
-      action: () => insertAtCursor('![', '](image-url)', 'alt text'),
+      action: () => setShowImagePicker(true),
     },
     {
       icon: <Code className="w-4 h-4" />,
@@ -330,6 +364,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         className="w-full min-h-[300px] p-4 border-none outline-none resize-none font-mono text-sm"
         style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
       />
+
+      {/* Image Picker Modal */}
+      {showImagePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full h-full md:w-[90vw] md:h-[85vh] md:max-w-6xl md:rounded-xl overflow-hidden flex flex-col shadow-2xl">
+            <MediaLibraryPage
+              isSelectionMode={true}
+              onSelect={handleImageSelect}
+              onCancel={() => setShowImagePicker(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

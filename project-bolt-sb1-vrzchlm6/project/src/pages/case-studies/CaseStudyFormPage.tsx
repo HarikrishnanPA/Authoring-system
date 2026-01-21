@@ -184,12 +184,17 @@ export default function CaseStudyFormPage() {
         payload.BreadCrumb = breadcrumbArray;
       }
 
-      // Add SEO
+      // Add SEO (metaDescription must be at least 50 characters for Strapi validation)
+      const metaDescription = formData.seoDescription || formData.shortDescription || '';
       const seoPayload: any = {
         metaTitle: formData.seoTitle || formData.title,
-        metaDescription: formData.seoDescription || formData.shortDescription,
         keywords: formData.seoKeywords,
       };
+
+      // Only include metaDescription if it meets the minimum length requirement (50 chars)
+      if (metaDescription.length >= 50) {
+        seoPayload.metaDescription = metaDescription;
+      }
 
       // Add metaImage if set
       if (formData.seoMetaImage) {
@@ -226,11 +231,11 @@ export default function CaseStudyFormPage() {
       if (id) {
         const response = await ApiService.updateCaseStudy(parseInt(id), payload);
         console.log('Update response:', response);
-        alert('Case study updated successfully!');
+        alert(shouldPublish ? 'Case study published successfully!' : 'Draft saved successfully!');
       } else {
         const response = await ApiService.createCaseStudy(payload);
         console.log('Create response:', response);
-        alert('Case study created successfully!');
+        alert(shouldPublish ? 'Case study published successfully!' : 'Draft created successfully!');
       }
 
       navigate('/case-studies');

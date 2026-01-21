@@ -1,17 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Save, Eye, Plus, Trash, MoveUp, MoveDown, FileText, EyeIcon } from 'lucide-react';
+import { ChevronRight, Save, Eye, Plus, Trash, MoveUp, MoveDown } from 'lucide-react';
 import { Sidebar } from '@/components/layout';
-import { RichTextEditor } from '@/components/editor';
+import MarkdownEditorWithPreview from '@/components/editor/MarkdownEditorWithPreview';
 import { ApiService, MediaFile } from '@/lib/api';
 import MediaPicker from '@/components/media/MediaPicker';
-import { marked } from 'marked';
-
-// Configure marked to use GitHub Flavored Markdown
-marked.setOptions({
-  gfm: true,
-  breaks: true,
-});
 
 interface HeroCardItem {
   Title: string;
@@ -22,6 +15,7 @@ interface SectionOneCardItem {
   Title: string;
   Description: string;
   Tag: string;
+  Icon: MediaFile | null;
 }
 
 interface SectionTwoCardItem {
@@ -29,11 +23,14 @@ interface SectionTwoCardItem {
   PrimaryDescription: string;
   SecondaryTitle: string;
   SecondaryDescription: string;
+  PrimaryIcon: MediaFile | null;
+  SecondaryIcon: MediaFile | null;
 }
 
 interface SectionThreeCardItem {
   Title: string;
   SubTitle: string;
+  Image: MediaFile | null;
 }
 
 interface SectionFourCardItem {
@@ -45,10 +42,16 @@ interface SectionSixCardOneItem {
   Title: string;
   Description: string;
   Tag: string;
+  Icon: MediaFile | null;
+}
+
+interface TextItem {
+  Text: string;
 }
 
 interface SectionSixCardTwoItem {
   Title: string;
+  Text: TextItem[];
 }
 
 interface SectionSevenCardItem {
@@ -56,6 +59,7 @@ interface SectionSevenCardItem {
   PrimaryTitle: string;
   Description: string;
   SecondaryTitle: string;
+  TagList: TextItem[];
 }
 
 interface ListItem {
@@ -64,6 +68,7 @@ interface ListItem {
   Description: string;
   SecondaryTag: string;
   AlignImageToLeft: boolean;
+  Image: MediaFile | null;
 }
 
 interface BreadCrumbItem {
@@ -80,7 +85,6 @@ export default function ServiceFormPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -131,6 +135,15 @@ export default function ServiceFormPage() {
     }
   });
 
+  // Helper to extract MediaFile from API response
+  const extractMediaFile = (data: any): MediaFile | null => {
+    if (!data?.data) return null;
+    return {
+      id: data.data.id,
+      ...data.data.attributes,
+    };
+  };
+
   // Load existing service data when in edit mode
   useEffect(() => {
     if (isEditMode && id) {
@@ -139,7 +152,43 @@ export default function ServiceFormPage() {
         try {
           const service = await ApiService.getServiceDetailById(parseInt(id));
           if (service) {
-            // Populate form with existing data
+            // Process cards with images
+            const sectionOneCards = (service.attributes.SectionOneCard || []).map((card: any) => ({
+              ...card,
+              Icon: extractMediaFile(card.Icon),
+            }));
+            
+            const sectionTwoCards = (service.attributes.SectionTwoCard || []).map((card: any) => ({
+              ...card,
+              PrimaryIcon: extractMediaFile(card.PrimaryIcon),
+              SecondaryIcon: extractMediaFile(card.SecondaryIcon),
+            }));
+            
+            const sectionThreeCards = (service.attributes.SectionThreeCard || []).map((card: any) => ({
+              ...card,
+              Image: extractMediaFile(card.Image),
+            }));
+            
+            const sectionSixCardOne = (service.attributes.SectionSixCardOne || []).map((card: any) => ({
+              ...card,
+              Icon: extractMediaFile(card.Icon),
+            }));
+            
+            const sectionSixCardTwo = (service.attributes.SectionSixCardTwo || []).map((card: any) => ({
+              Title: card.Title || '',
+              Text: card.Text || [],
+            }));
+            
+            const sectionSevenCards = (service.attributes.SectionSevenCard || []).map((card: any) => ({
+              ...card,
+              TagList: card.TagList || [],
+            }));
+            
+            const listItems = (service.attributes.ListItems || []).map((item: any) => ({
+              ...item,
+              Image: extractMediaFile(item.Image),
+            }));
+
             setFormData({
               Slug: service.attributes.Slug || '',
               Title: service.attributes.Title || '',
@@ -167,24 +216,18 @@ export default function ServiceFormPage() {
               SectionSevenTitle: service.attributes.SectionSevenTitle || '',
               
               BreadCrumb: service.attributes.BreadCrumb || [],
-              Image: service.attributes.Image?.data ? {
-                id: (service.attributes.Image.data as any).id,
-                ...(service.attributes.Image.data as any).attributes,
-              } : null,
-              SectionThreeImage: service.attributes.SectionThreeImage?.data ? {
-                id: (service.attributes.SectionThreeImage.data as any).id,
-                ...(service.attributes.SectionThreeImage.data as any).attributes,
-              } : null,
+              Image: extractMediaFile(service.attributes.Image),
+              SectionThreeImage: extractMediaFile(service.attributes.SectionThreeImage),
               
               HeroCard: service.attributes.HeroCard || [],
-              SectionOneCard: service.attributes.SectionOneCard || [],
-              SectionTwoCard: service.attributes.SectionTwoCard || [],
-              SectionThreeCard: service.attributes.SectionThreeCard || [],
+              SectionOneCard: sectionOneCards,
+              SectionTwoCard: sectionTwoCards,
+              SectionThreeCard: sectionThreeCards,
               SectionFourCard: service.attributes.SectionFourCard || [],
-              SectionSixCardOne: service.attributes.SectionSixCardOne || [],
-              SectionSixCardTwo: service.attributes.SectionSixCardTwo || [],
-              SectionSevenCard: service.attributes.SectionSevenCard || [],
-              ListItems: service.attributes.ListItems || [],
+              SectionSixCardOne: sectionSixCardOne,
+              SectionSixCardTwo: sectionSixCardTwo,
+              SectionSevenCard: sectionSevenCards,
+              ListItems: listItems,
               
               CTAForm: service.attributes.CTAForm || { Title: '', Description: '' }
             });
@@ -244,6 +287,51 @@ export default function ServiceFormPage() {
     }));
   };
 
+  // Helper for nested array in card items (like Text array in SectionSixCardTwo)
+  const addNestedArrayItem = (field: keyof typeof formData, cardIndex: number, nestedField: string, emptyItem: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: (prev[field] as any[]).map((item, i) => {
+        if (i === cardIndex) {
+          return { ...item, [nestedField]: [...(item[nestedField] || []), emptyItem] };
+        }
+        return item;
+      })
+    }));
+  };
+
+  const removeNestedArrayItem = (field: keyof typeof formData, cardIndex: number, nestedField: string, nestedIndex: number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: (prev[field] as any[]).map((item, i) => {
+        if (i === cardIndex) {
+          return { ...item, [nestedField]: item[nestedField].filter((_: any, j: number) => j !== nestedIndex) };
+        }
+        return item;
+      })
+    }));
+  };
+
+  const updateNestedArrayItem = (field: keyof typeof formData, cardIndex: number, nestedField: string, nestedIndex: number, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: (prev[field] as any[]).map((item, i) => {
+        if (i === cardIndex) {
+          return {
+            ...item,
+            [nestedField]: item[nestedField].map((nested: any, j: number) => {
+              if (j === nestedIndex) {
+                return { Text: value };
+              }
+              return nested;
+            })
+          };
+        }
+        return item;
+      })
+    }));
+  };
+
   const moveBreadcrumb = (index: number, direction: 'up' | 'down') => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= formData.BreadCrumb.length) return;
@@ -253,42 +341,122 @@ export default function ServiceFormPage() {
     setFormData({ ...formData, BreadCrumb: newBreadcrumbs });
   };
 
+  // Helper to extract image ID from MediaFile for API payload
+  const extractImageId = (file: MediaFile | null): number | undefined => {
+    return file?.id;
+  };
 
   const handleSave = async (shouldPublish: boolean = false) => {
     setIsSaving(true);
     setError(null);
 
     try {
-      // Prepare payload and exclude empty image IDs
-      const payload = { ...formData };
+      // Prepare payload
+      const payload: any = { 
+        Slug: formData.Slug,
+        Title: formData.Title,
+        Description: formData.Description,
+        CTAText: formData.CTAText,
+        CTALink: formData.CTALink,
+        SectionOneTag: formData.SectionOneTag,
+        SectionOneStrongText: formData.SectionOneStrongText,
+        SectionOneTitle: formData.SectionOneTitle,
+        SectionOnePrimaryDescription: formData.SectionOnePrimaryDescription,
+        SectionOneSecondaryDescription: formData.SectionOneSecondaryDescription,
+        SectionTwoTag: formData.SectionTwoTag,
+        SectionTwoTitle: formData.SectionTwoTitle,
+        SectionTwoDescription: formData.SectionTwoDescription,
+        SectionThreeTitle: formData.SectionThreeTitle,
+        SectionFourTitle: formData.SectionFourTitle,
+        SectionSixTag: formData.SectionSixTag,
+        SectionSixTitle: formData.SectionSixTitle,
+        SectionSevenTag: formData.SectionSevenTag,
+        SectionSevenTitle: formData.SectionSevenTitle,
+        BreadCrumb: formData.BreadCrumb,
+        HeroCard: formData.HeroCard,
+        SectionFourCard: formData.SectionFourCard,
+        CTAForm: formData.CTAForm,
+      };
       
-      // Handle image fields - extract ID if set, otherwise remove
+      // Handle main images
       if (formData.Image) {
-        (payload as any).Image = formData.Image.id;
-      } else {
-        delete (payload as any).Image;
+        payload.Image = formData.Image.id;
       }
       if (formData.SectionThreeImage) {
-        (payload as any).SectionThreeImage = formData.SectionThreeImage.id;
-      } else {
-        delete (payload as any).SectionThreeImage;
+        payload.SectionThreeImage = formData.SectionThreeImage.id;
       }
-      
-      console.log('Publishing:', shouldPublish);
+
+      // Handle SectionOneCard with icons
+      payload.SectionOneCard = formData.SectionOneCard.map(card => ({
+        Title: card.Title,
+        Description: card.Description,
+        Tag: card.Tag,
+        Icon: extractImageId(card.Icon),
+      }));
+
+      // Handle SectionTwoCard with icons
+      payload.SectionTwoCard = formData.SectionTwoCard.map(card => ({
+        PrimaryTitle: card.PrimaryTitle,
+        PrimaryDescription: card.PrimaryDescription,
+        SecondaryTitle: card.SecondaryTitle,
+        SecondaryDescription: card.SecondaryDescription,
+        PrimaryIcon: extractImageId(card.PrimaryIcon),
+        SecondaryIcon: extractImageId(card.SecondaryIcon),
+      }));
+
+      // Handle SectionThreeCard with images
+      payload.SectionThreeCard = formData.SectionThreeCard.map(card => ({
+        Title: card.Title,
+        SubTitle: card.SubTitle,
+        Image: extractImageId(card.Image),
+      }));
+
+      // Handle SectionSixCardOne with icons
+      payload.SectionSixCardOne = formData.SectionSixCardOne.map(card => ({
+        Title: card.Title,
+        Description: card.Description,
+        Tag: card.Tag,
+        Icon: extractImageId(card.Icon),
+      }));
+
+      // Handle SectionSixCardTwo with Text array
+      payload.SectionSixCardTwo = formData.SectionSixCardTwo.map(card => ({
+        Title: card.Title,
+        Text: card.Text,
+      }));
+
+      // Handle SectionSevenCard with TagList
+      payload.SectionSevenCard = formData.SectionSevenCard.map(card => ({
+        Metric: card.Metric,
+        PrimaryTitle: card.PrimaryTitle,
+        Description: card.Description,
+        SecondaryTitle: card.SecondaryTitle,
+        TagList: card.TagList,
+      }));
+
+      // Handle ListItems with images
+      payload.ListItems = formData.ListItems.map(item => ({
+        PrimaryTag: item.PrimaryTag,
+        Title: item.Title,
+        Description: item.Description,
+        SecondaryTag: item.SecondaryTag,
+        AlignImageToLeft: item.AlignImageToLeft,
+        Image: extractImageId(item.Image),
+      }));
       
       // Set publishedAt based on draft or publish
       if (shouldPublish) {
-        (payload as any).publishedAt = new Date().toISOString();
+        payload.publishedAt = new Date().toISOString();
       } else {
-        (payload as any).publishedAt = null;
+        payload.publishedAt = null;
       }
       
       if (isEditMode && id) {
-        // Update existing service
         await ApiService.updateService(parseInt(id), payload);
+        alert(shouldPublish ? 'Service published successfully!' : 'Draft saved successfully!');
       } else {
-        // Create new service
         await ApiService.createService(payload);
+        alert(shouldPublish ? 'Service published successfully!' : 'Draft created successfully!');
       }
       navigate('/services');
     } catch (err: any) {
@@ -328,9 +496,20 @@ export default function ServiceFormPage() {
               >
                 Services
               </button>
+              {isEditMode && id && (
+                <>
+                  <ChevronRight className="w-4 h-4" />
+                  <button
+                    onClick={() => navigate(`/services/${id}`)}
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    {formData.Title || 'Service'}
+                  </button>
+                </>
+              )}
               <ChevronRight className="w-4 h-4" />
               <span className="text-gray-900 font-medium">
-                {isEditMode ? 'Edit Service' : 'New Service'}
+                {isEditMode ? 'Edit' : 'New Service'}
               </span>
             </div>
 
@@ -382,150 +561,35 @@ export default function ServiceFormPage() {
                 <div className="space-y-4">
                   {formData.BreadCrumb.map((item, index) => (
                     <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex gap-4 items-start">
-                      {/* Move buttons */}
                       <div className="flex flex-col gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveBreadcrumb(index, 'up')}
-                          disabled={index === 0}
-                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Move up"
-                        >
-                          <MoveUp className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveBreadcrumb(index, 'down')}
-                          disabled={index === formData.BreadCrumb.length - 1}
-                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Move down"
-                        >
-                          <MoveDown className="w-4 h-4" />
-                        </button>
+                        <button type="button" onClick={() => moveBreadcrumb(index, 'up')} disabled={index === 0} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"><MoveUp className="w-4 h-4" /></button>
+                        <button type="button" onClick={() => moveBreadcrumb(index, 'down')} disabled={index === formData.BreadCrumb.length - 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"><MoveDown className="w-4 h-4" /></button>
                       </div>
-
-                      {/* Fields with labels */}
                       <div className="flex-1 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Label
-                          </label>
-                          <input
-                            type="text"
-                            value={item.Label}
-                            onChange={(e) => updateArrayItem('BreadCrumb', index, 'Label', e.target.value)}
-                            placeholder="e.g., Services"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Link
-                          </label>
-                          <input
-                            type="text"
-                            value={item.Link}
-                            onChange={(e) => updateArrayItem('BreadCrumb', index, 'Link', e.target.value)}
-                            placeholder="e.g., /services"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
-                          />
-                        </div>
+                        <div><label className="block text-xs font-medium text-gray-700 mb-1">Label</label><input type="text" value={item.Label} onChange={(e) => updateArrayItem('BreadCrumb', index, 'Label', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" /></div>
+                        <div><label className="block text-xs font-medium text-gray-700 mb-1">Link</label><input type="text" value={item.Link} onChange={(e) => updateArrayItem('BreadCrumb', index, 'Link', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg" /></div>
                       </div>
-
-                      {/* Delete button */}
-                      <button
-                        type="button"
-                        onClick={() => removeArrayItem('BreadCrumb', index)}
-                        className="p-2 text-red-600 hover:text-red-800 transition-colors"
-                        title="Remove breadcrumb"
-                      >
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <button type="button" onClick={() => removeArrayItem('BreadCrumb', index)} className="p-2 text-red-600 hover:text-red-800"><Trash className="w-4 h-4" /></button>
                     </div>
                   ))}
                 </div>
 
-                {/* Basic Fields - Slug, Title, Description, CTA, Image */}
+                {/* Basic Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-200 pt-6 mt-8">
-                  <div>
-                    <label className={labelClass}>Slug</label>
-                    <input type="text" name="Slug" value={formData.Slug} onChange={handleChange} required className={inputClass} placeholder="service-slug" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Title</label>
-                    <input type="text" name="Title" value={formData.Title} onChange={handleChange} required className={inputClass} placeholder="Service Title" />
-                  </div>
+                  <div><label className={labelClass}>Slug</label><input type="text" name="Slug" value={formData.Slug} onChange={handleChange} required className={inputClass} placeholder="service-slug" /></div>
+                  <div><label className={labelClass}>Title</label><input type="text" name="Title" value={formData.Title} onChange={handleChange} required className={inputClass} placeholder="Service Title" /></div>
                   <div className="md:col-span-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className={labelClass}>Description (Markdown)</label>
-                      <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                        <button
-                          type="button"
-                          onClick={() => setIsPreviewMode(false)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                            !isPreviewMode
-                              ? 'bg-white text-gray-900 shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900'
-                          }`}
-                        >
-                          <FileText className="w-4 h-4" />
-                          Markdown
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIsPreviewMode(true)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                            isPreviewMode
-                              ? 'bg-white text-gray-900 shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900'
-                          }`}
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                          Preview
-                        </button>
-                      </div>
-                    </div>
-
-                    {!isPreviewMode ? (
-                      <div className="border border-gray-300 rounded-lg overflow-hidden">
-                        <RichTextEditor
-                          value={formData.Description}
-                          onChange={(value) => setFormData({ ...formData, Description: value })}
-                          placeholder="Enter service description in markdown format..."
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full min-h-[300px] px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 overflow-auto">
-                        <div className="prose prose-slate max-w-none">
-                          {formData.Description ? (
-                            <div
-                              dangerouslySetInnerHTML={{
-                                __html: marked.parse(formData.Description) as string
-                              }}
-                            />
-                          ) : (
-                            <p className="text-gray-400 italic">No content to preview</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className={labelClass}>CTA Text</label>
-                    <input type="text" name="CTAText" value={formData.CTAText} onChange={handleChange} className={inputClass} placeholder="Call to Action" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>CTA Link</label>
-                    <input type="text" name="CTALink" value={formData.CTALink} onChange={handleChange} className={inputClass} placeholder="/contact" />
-                  </div>
-                  <div>
-                    <MediaPicker
-                      label="Main Image"
-                      value={formData.Image}
-                      onChange={(file) => setFormData({ ...formData, Image: file })}
+                    <MarkdownEditorWithPreview
+                      label="Description (Markdown)"
+                      value={formData.Description}
+                      onChange={(value) => setFormData({ ...formData, Description: value })}
+                      placeholder="Enter service description..."
+                      minHeight="300px"
                     />
                   </div>
+                  <div><label className={labelClass}>CTA Text</label><input type="text" name="CTAText" value={formData.CTAText} onChange={handleChange} className={inputClass} placeholder="Call to Action" /></div>
+                  <div><label className={labelClass}>CTA Link</label><input type="text" name="CTALink" value={formData.CTALink} onChange={handleChange} className={inputClass} placeholder="/contact" /></div>
+                  <div><MediaPicker label="Main Image" value={formData.Image} onChange={(file) => setFormData({ ...formData, Image: file })} /></div>
                 </div>
 
                 {/* Hero Cards */}
@@ -537,9 +601,7 @@ export default function ServiceFormPage() {
                         <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('HeroCard', index, 'Title', e.target.value)} className={inputClass} />
                         <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('HeroCard', index, 'Description', e.target.value)} className={inputClass} />
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('HeroCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <button type="button" onClick={() => removeArrayItem('HeroCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2"><Trash className="w-4 h-4" /></button>
                     </div>
                   ))}
                 </div>
@@ -556,21 +618,30 @@ export default function ServiceFormPage() {
 
                 <div className="flex justify-between items-center mb-4 border-t pt-4 border-gray-100">
                   <h4 className="text-md font-medium text-gray-700">Section One Cards</h4>
-                  <button type="button" onClick={() => addArrayItem('SectionOneCard', { Title: '', Description: '', Tag: '' })} className="flex items-center text-sm text-gray-600 hover:text-gray-900">
-                    <Plus className="w-4 h-4 mr-1" /> Add Card
-                  </button>
+                  <button type="button" onClick={() => addArrayItem('SectionOneCard', { Title: '', Description: '', Tag: '', Icon: null })} className="flex items-center text-sm text-gray-600 hover:text-gray-900"><Plus className="w-4 h-4 mr-1" /> Add Card</button>
                 </div>
                 <div className="space-y-4">
                   {formData.SectionOneCard.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                        <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('SectionOneCard', index, 'Title', e.target.value)} className={inputClass} />
-                        <input placeholder="Tag" value={item.Tag} onChange={(e) => updateArrayItem('SectionOneCard', index, 'Tag', e.target.value)} className={inputClass} />
-                        <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('SectionOneCard', index, 'Description', e.target.value)} className={`${inputClass} md:col-span-2`} />
+                    <div key={index} className="border p-4 rounded-md bg-gray-50 space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h5 className="text-sm font-medium text-gray-700">Card {index + 1}</h5>
+                        <button type="button" onClick={() => removeArrayItem('SectionOneCard', index)} className="text-red-600 hover:text-red-800 p-2"><Trash className="w-4 h-4" /></button>
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('SectionOneCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-1"><MediaPicker label="Icon" value={item.Icon} onChange={(file) => updateArrayItem('SectionOneCard', index, 'Icon', file)} /></div>
+                        <div className="md:col-span-2 space-y-4">
+                          <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('SectionOneCard', index, 'Title', e.target.value)} className={inputClass} />
+                          <input placeholder="Tag" value={item.Tag} onChange={(e) => updateArrayItem('SectionOneCard', index, 'Tag', e.target.value)} className={inputClass} />
+                        </div>
+                      </div>
+                      <div>
+                        <MarkdownEditorWithPreview
+                          label="Description (Markdown)"
+                          value={item.Description}
+                          onChange={(value) => updateArrayItem('SectionOneCard', index, 'Description', value)}
+                          placeholder="Enter description..."
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -585,22 +656,43 @@ export default function ServiceFormPage() {
 
                 <div className="flex justify-between items-center mb-4 border-t pt-4 border-gray-100">
                   <h4 className="text-md font-medium text-gray-700">Section Two Cards</h4>
-                  <button type="button" onClick={() => addArrayItem('SectionTwoCard', { PrimaryTitle: '', PrimaryDescription: '', SecondaryTitle: '', SecondaryDescription: '' })} className="flex items-center text-sm text-gray-600 hover:text-gray-900">
-                    <Plus className="w-4 h-4 mr-1" /> Add Card
-                  </button>
+                  <button type="button" onClick={() => addArrayItem('SectionTwoCard', { PrimaryTitle: '', PrimaryDescription: '', SecondaryTitle: '', SecondaryDescription: '', PrimaryIcon: null, SecondaryIcon: null })} className="flex items-center text-sm text-gray-600 hover:text-gray-900"><Plus className="w-4 h-4 mr-1" /> Add Card</button>
                 </div>
                 <div className="space-y-4">
                   {formData.SectionTwoCard.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                        <input placeholder="Primary Title" value={item.PrimaryTitle} onChange={(e) => updateArrayItem('SectionTwoCard', index, 'PrimaryTitle', e.target.value)} className={inputClass} />
-                        <textarea placeholder="Primary Description" value={item.PrimaryDescription} onChange={(e) => updateArrayItem('SectionTwoCard', index, 'PrimaryDescription', e.target.value)} className={inputClass} />
-                        <input placeholder="Secondary Title" value={item.SecondaryTitle} onChange={(e) => updateArrayItem('SectionTwoCard', index, 'SecondaryTitle', e.target.value)} className={inputClass} />
-                        <textarea placeholder="Secondary Description" value={item.SecondaryDescription} onChange={(e) => updateArrayItem('SectionTwoCard', index, 'SecondaryDescription', e.target.value)} className={inputClass} />
+                    <div key={index} className="border p-4 rounded-md bg-gray-50 space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h5 className="text-sm font-medium text-gray-700">Card {index + 1}</h5>
+                        <button type="button" onClick={() => removeArrayItem('SectionTwoCard', index)} className="text-red-600 hover:text-red-800 p-2"><Trash className="w-4 h-4" /></button>
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('SectionTwoCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-4 p-4 bg-blue-50 rounded-lg">
+                          <h6 className="text-xs font-semibold text-blue-700 uppercase">Primary</h6>
+                          <MediaPicker label="Primary Icon" value={item.PrimaryIcon} onChange={(file) => updateArrayItem('SectionTwoCard', index, 'PrimaryIcon', file)} />
+                          <input placeholder="Primary Title" value={item.PrimaryTitle} onChange={(e) => updateArrayItem('SectionTwoCard', index, 'PrimaryTitle', e.target.value)} className={inputClass} />
+                          <div className="bg-white rounded-lg">
+                            <MarkdownEditorWithPreview
+                              label="Primary Description (Markdown)"
+                              value={item.PrimaryDescription}
+                              onChange={(value) => updateArrayItem('SectionTwoCard', index, 'PrimaryDescription', value)}
+                              placeholder="Primary description..."
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-4 p-4 bg-green-50 rounded-lg">
+                          <h6 className="text-xs font-semibold text-green-700 uppercase">Secondary</h6>
+                          <MediaPicker label="Secondary Icon" value={item.SecondaryIcon} onChange={(file) => updateArrayItem('SectionTwoCard', index, 'SecondaryIcon', file)} />
+                          <input placeholder="Secondary Title" value={item.SecondaryTitle} onChange={(e) => updateArrayItem('SectionTwoCard', index, 'SecondaryTitle', e.target.value)} className={inputClass} />
+                          <div className="bg-white rounded-lg">
+                            <MarkdownEditorWithPreview
+                              label="Secondary Description (Markdown)"
+                              value={item.SecondaryDescription}
+                              onChange={(value) => updateArrayItem('SectionTwoCard', index, 'SecondaryDescription', value)}
+                              placeholder="Secondary description..."
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -609,44 +701,37 @@ export default function ServiceFormPage() {
                 {renderSectionHeader("Section Three")}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <input placeholder="Title" name="SectionThreeTitle" value={formData.SectionThreeTitle} onChange={handleChange} className={inputClass} />
-                  <MediaPicker
-                    label="Section Three Image"
-                    value={formData.SectionThreeImage}
-                    onChange={(file) => setFormData({ ...formData, SectionThreeImage: file })}
-                  />
+                  <MediaPicker label="Section Three Image" value={formData.SectionThreeImage} onChange={(file) => setFormData({ ...formData, SectionThreeImage: file })} />
                 </div>
 
                 <div className="flex justify-between items-center mb-4 border-t pt-4 border-gray-100">
                   <h4 className="text-md font-medium text-gray-700">Section Three Cards</h4>
-                  <button type="button" onClick={() => addArrayItem('SectionThreeCard', { Title: '', SubTitle: '' })} className="flex items-center text-sm text-gray-600 hover:text-gray-900">
-                    <Plus className="w-4 h-4 mr-1" /> Add Card
-                  </button>
+                  <button type="button" onClick={() => addArrayItem('SectionThreeCard', { Title: '', SubTitle: '', Image: null })} className="flex items-center text-sm text-gray-600 hover:text-gray-900"><Plus className="w-4 h-4 mr-1" /> Add Card</button>
                 </div>
                 <div className="space-y-4">
                   {formData.SectionThreeCard.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                        <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('SectionThreeCard', index, 'Title', e.target.value)} className={inputClass} />
-                        <input placeholder="Subtitle" value={item.SubTitle} onChange={(e) => updateArrayItem('SectionThreeCard', index, 'SubTitle', e.target.value)} className={inputClass} />
+                    <div key={index} className="border p-4 rounded-md bg-gray-50 space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h5 className="text-sm font-medium text-gray-700">Card {index + 1}</h5>
+                        <button type="button" onClick={() => removeArrayItem('SectionThreeCard', index)} className="text-red-600 hover:text-red-800 p-2"><Trash className="w-4 h-4" /></button>
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('SectionThreeCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><MediaPicker label="Image" value={item.Image} onChange={(file) => updateArrayItem('SectionThreeCard', index, 'Image', file)} /></div>
+                        <div className="md:col-span-2 space-y-4">
+                          <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('SectionThreeCard', index, 'Title', e.target.value)} className={inputClass} />
+                          <input placeholder="SubTitle" value={item.SubTitle} onChange={(e) => updateArrayItem('SectionThreeCard', index, 'SubTitle', e.target.value)} className={inputClass} />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
 
                 {/* Section Four */}
                 {renderSectionHeader("Section Four")}
-                <div className="mb-6">
-                  <input placeholder="Title" name="SectionFourTitle" value={formData.SectionFourTitle} onChange={handleChange} className={inputClass} />
-                </div>
-
+                <div className="mb-6"><input placeholder="Title" name="SectionFourTitle" value={formData.SectionFourTitle} onChange={handleChange} className={inputClass} /></div>
                 <div className="flex justify-between items-center mb-4 border-t pt-4 border-gray-100">
                   <h4 className="text-md font-medium text-gray-700">Section Four Cards</h4>
-                  <button type="button" onClick={() => addArrayItem('SectionFourCard', { Metric: '', Description: '' })} className="flex items-center text-sm text-gray-600 hover:text-gray-900">
-                    <Plus className="w-4 h-4 mr-1" /> Add Card
-                  </button>
+                  <button type="button" onClick={() => addArrayItem('SectionFourCard', { Metric: '', Description: '' })} className="flex items-center text-sm text-gray-600 hover:text-gray-900"><Plus className="w-4 h-4 mr-1" /> Add Card</button>
                 </div>
                 <div className="space-y-4">
                   {formData.SectionFourCard.map((item, index) => (
@@ -655,31 +740,37 @@ export default function ServiceFormPage() {
                         <input placeholder="Metric" value={item.Metric} onChange={(e) => updateArrayItem('SectionFourCard', index, 'Metric', e.target.value)} className={inputClass} />
                         <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('SectionFourCard', index, 'Description', e.target.value)} className={inputClass} />
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('SectionFourCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <button type="button" onClick={() => removeArrayItem('SectionFourCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2"><Trash className="w-4 h-4" /></button>
                     </div>
                   ))}
                 </div>
 
                 {/* List Items */}
-                {renderSectionHeader("List Items", () => addArrayItem('ListItems', { PrimaryTag: '', Title: '', Description: '', SecondaryTag: '', AlignImageToLeft: false }), "Add List Item")}
+                {renderSectionHeader("List Items", () => addArrayItem('ListItems', { PrimaryTag: '', Title: '', Description: '', SecondaryTag: '', AlignImageToLeft: false, Image: null }), "Add List Item")}
                 <div className="space-y-4">
                   {formData.ListItems.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-                        <input placeholder="Primary Tag" value={item.PrimaryTag} onChange={(e) => updateArrayItem('ListItems', index, 'PrimaryTag', e.target.value)} className={inputClass} />
-                        <input placeholder="Secondary Tag" value={item.SecondaryTag} onChange={(e) => updateArrayItem('ListItems', index, 'SecondaryTag', e.target.value)} className={inputClass} />
-                        <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('ListItems', index, 'Title', e.target.value)} className={inputClass} />
-                        <label className="flex items-center space-x-2 mt-3">
-                          <input type="checkbox" checked={item.AlignImageToLeft} onChange={(e) => updateArrayItem('ListItems', index, 'AlignImageToLeft', e.target.checked)} className="rounded text-gray-900 focus:ring-gray-900 h-4 w-4" />
-                          <span className="text-sm text-gray-700">Align Image Left</span>
-                        </label>
-                        <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('ListItems', index, 'Description', e.target.value)} className={`${inputClass} md:col-span-2`} />
+                    <div key={index} className="border p-4 rounded-md bg-gray-50 space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h5 className="text-sm font-medium text-gray-700">List Item {index + 1}</h5>
+                        <button type="button" onClick={() => removeArrayItem('ListItems', index)} className="text-red-600 hover:text-red-800 p-2"><Trash className="w-4 h-4" /></button>
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('ListItems', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><MediaPicker label="Image" value={item.Image} onChange={(file) => updateArrayItem('ListItems', index, 'Image', file)} /></div>
+                        <div className="md:col-span-2 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <input placeholder="Primary Tag" value={item.PrimaryTag} onChange={(e) => updateArrayItem('ListItems', index, 'PrimaryTag', e.target.value)} className={inputClass} />
+                            <input placeholder="Secondary Tag" value={item.SecondaryTag} onChange={(e) => updateArrayItem('ListItems', index, 'SecondaryTag', e.target.value)} className={inputClass} />
+                          </div>
+                          <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('ListItems', index, 'Title', e.target.value)} className={inputClass} />
+                          <label className="flex items-center space-x-2"><input type="checkbox" checked={item.AlignImageToLeft} onChange={(e) => updateArrayItem('ListItems', index, 'AlignImageToLeft', e.target.checked)} className="rounded text-gray-900 h-4 w-4" /><span className="text-sm text-gray-700">Align Image Left</span></label>
+                          <MarkdownEditorWithPreview
+                            label="Description (Markdown)"
+                            value={item.Description}
+                            onChange={(value) => updateArrayItem('ListItems', index, 'Description', value)}
+                            placeholder="Enter description..."
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -693,40 +784,60 @@ export default function ServiceFormPage() {
 
                 <div className="flex justify-between items-center mb-4 border-t pt-4 border-gray-100">
                   <h4 className="text-md font-medium text-gray-700">Section Six Cards Type 1</h4>
-                  <button type="button" onClick={() => addArrayItem('SectionSixCardOne', { Title: '', Description: '', Tag: '' })} className="flex items-center text-sm text-gray-600 hover:text-gray-900">
-                    <Plus className="w-4 h-4 mr-1" /> Add Card
-                  </button>
+                  <button type="button" onClick={() => addArrayItem('SectionSixCardOne', { Title: '', Description: '', Tag: '', Icon: null })} className="flex items-center text-sm text-gray-600 hover:text-gray-900"><Plus className="w-4 h-4 mr-1" /> Add Card</button>
                 </div>
                 <div className="space-y-4 mb-8">
                   {formData.SectionSixCardOne.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
-                        <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('SectionSixCardOne', index, 'Title', e.target.value)} className={inputClass} />
-                        <input placeholder="Tag" value={item.Tag} onChange={(e) => updateArrayItem('SectionSixCardOne', index, 'Tag', e.target.value)} className={inputClass} />
-                        <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('SectionSixCardOne', index, 'Description', e.target.value)} className={`${inputClass} md:col-span-3`} />
+                    <div key={index} className="border p-4 rounded-md bg-gray-50 space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h5 className="text-sm font-medium text-gray-700">Card {index + 1}</h5>
+                        <button type="button" onClick={() => removeArrayItem('SectionSixCardOne', index)} className="text-red-600 hover:text-red-800 p-2"><Trash className="w-4 h-4" /></button>
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('SectionSixCardOne', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><MediaPicker label="Icon" value={item.Icon} onChange={(file) => updateArrayItem('SectionSixCardOne', index, 'Icon', file)} /></div>
+                        <div className="md:col-span-2 space-y-4">
+                          <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('SectionSixCardOne', index, 'Title', e.target.value)} className={inputClass} />
+                          <input placeholder="Tag" value={item.Tag} onChange={(e) => updateArrayItem('SectionSixCardOne', index, 'Tag', e.target.value)} className={inputClass} />
+                        </div>
+                      </div>
+                      <div>
+                        <MarkdownEditorWithPreview
+                          label="Description (Markdown)"
+                          value={item.Description}
+                          onChange={(value) => updateArrayItem('SectionSixCardOne', index, 'Description', value)}
+                          placeholder="Enter description..."
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
 
                 <div className="flex justify-between items-center mb-4 border-t pt-4 border-gray-100">
                   <h4 className="text-md font-medium text-gray-700">Section Six Cards Type 2</h4>
-                  <button type="button" onClick={() => addArrayItem('SectionSixCardTwo', { Title: '' })} className="flex items-center text-sm text-gray-600 hover:text-gray-900">
-                    <Plus className="w-4 h-4 mr-1" /> Add Card
-                  </button>
+                  <button type="button" onClick={() => addArrayItem('SectionSixCardTwo', { Title: '', Text: [] })} className="flex items-center text-sm text-gray-600 hover:text-gray-900"><Plus className="w-4 h-4 mr-1" /> Add Card</button>
                 </div>
                 <div className="space-y-4">
                   {formData.SectionSixCardTwo.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="flex-1">
-                        <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('SectionSixCardTwo', index, 'Title', e.target.value)} className={inputClass} />
+                    <div key={index} className="border p-4 rounded-md bg-gray-50 space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h5 className="text-sm font-medium text-gray-700">Card {index + 1}</h5>
+                        <button type="button" onClick={() => removeArrayItem('SectionSixCardTwo', index)} className="text-red-600 hover:text-red-800 p-2"><Trash className="w-4 h-4" /></button>
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('SectionSixCardTwo', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <input placeholder="Title" value={item.Title} onChange={(e) => updateArrayItem('SectionSixCardTwo', index, 'Title', e.target.value)} className={inputClass} />
+                      <div className="border-t pt-4 mt-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs font-medium text-gray-700">Text Items</label>
+                          <button type="button" onClick={() => addNestedArrayItem('SectionSixCardTwo', index, 'Text', { Text: '' })} className="flex items-center text-xs text-primary hover:text-primary/80"><Plus className="w-3 h-3 mr-1" /> Add Text</button>
+                        </div>
+                        <div className="space-y-2">
+                          {(item.Text || []).map((textItem, textIndex) => (
+                            <div key={textIndex} className="flex gap-2 items-center">
+                              <input placeholder="Text item" value={textItem.Text} onChange={(e) => updateNestedArrayItem('SectionSixCardTwo', index, 'Text', textIndex, e.target.value)} className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg" />
+                              <button type="button" onClick={() => removeNestedArrayItem('SectionSixCardTwo', index, 'Text', textIndex)} className="text-red-600 hover:text-red-800 p-1"><Trash className="w-3 h-3" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -740,31 +851,50 @@ export default function ServiceFormPage() {
 
                 <div className="flex justify-between items-center mb-4 border-t pt-4 border-gray-100">
                   <h4 className="text-md font-medium text-gray-700">Section Seven Cards</h4>
-                  <button type="button" onClick={() => addArrayItem('SectionSevenCard', { Metric: '', PrimaryTitle: '', Description: '', SecondaryTitle: '' })} className="flex items-center text-sm text-gray-600 hover:text-gray-900">
-                    <Plus className="w-4 h-4 mr-1" /> Add Card
-                  </button>
+                  <button type="button" onClick={() => addArrayItem('SectionSevenCard', { Metric: '', PrimaryTitle: '', Description: '', SecondaryTitle: '', TagList: [] })} className="flex items-center text-sm text-gray-600 hover:text-gray-900"><Plus className="w-4 h-4 mr-1" /> Add Card</button>
                 </div>
                 <div className="space-y-4">
                   {formData.SectionSevenCard.map((item, index) => (
-                    <div key={index} className="flex gap-4 items-start border p-4 rounded-md bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+                    <div key={index} className="border p-4 rounded-md bg-gray-50 space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h5 className="text-sm font-medium text-gray-700">Card {index + 1}</h5>
+                        <button type="button" onClick={() => removeArrayItem('SectionSevenCard', index)} className="text-red-600 hover:text-red-800 p-2"><Trash className="w-4 h-4" /></button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <input placeholder="Metric" value={item.Metric} onChange={(e) => updateArrayItem('SectionSevenCard', index, 'Metric', e.target.value)} className={inputClass} />
                         <input placeholder="Primary Title" value={item.PrimaryTitle} onChange={(e) => updateArrayItem('SectionSevenCard', index, 'PrimaryTitle', e.target.value)} className={inputClass} />
                         <input placeholder="Secondary Title" value={item.SecondaryTitle} onChange={(e) => updateArrayItem('SectionSevenCard', index, 'SecondaryTitle', e.target.value)} className={inputClass} />
-                        <textarea placeholder="Description" value={item.Description} onChange={(e) => updateArrayItem('SectionSevenCard', index, 'Description', e.target.value)} className={inputClass} />
+                        <textarea placeholder="Description (plain text)" value={item.Description} onChange={(e) => updateArrayItem('SectionSevenCard', index, 'Description', e.target.value)} className={inputClass} />
                       </div>
-                      <button type="button" onClick={() => removeArrayItem('SectionSevenCard', index)} className="text-red-600 hover:text-red-800 p-2 mt-2">
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      <div className="border-t pt-4 mt-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs font-medium text-gray-700">Tag List</label>
+                          <button type="button" onClick={() => addNestedArrayItem('SectionSevenCard', index, 'TagList', { Text: '' })} className="flex items-center text-xs text-primary hover:text-primary/80"><Plus className="w-3 h-3 mr-1" /> Add Tag</button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {(item.TagList || []).map((tag, tagIndex) => (
+                            <div key={tagIndex} className="flex gap-1 items-center bg-gray-100 rounded-full px-3 py-1">
+                              <input placeholder="Tag" value={tag.Text} onChange={(e) => updateNestedArrayItem('SectionSevenCard', index, 'TagList', tagIndex, e.target.value)} className="bg-transparent border-none text-sm w-24 focus:outline-none" />
+                              <button type="button" onClick={() => removeNestedArrayItem('SectionSevenCard', index, 'TagList', tagIndex)} className="text-gray-500 hover:text-red-600"><Trash className="w-3 h-3" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                {/* CTA Form - LAST */}
                 {renderSectionHeader("CTA Form Details")}
                 <div className="grid grid-cols-1 gap-6">
-                  <input placeholder="Title" value={formData.CTAForm.Title} onChange={(e) => handleNestedChange('CTAForm', 'Title', e.target.value)} className={inputClass} />
-                  <textarea placeholder="Description" value={formData.CTAForm.Description} onChange={(e) => handleNestedChange('CTAForm', 'Description', e.target.value)} className={inputClass} />
+                  <div><label className={labelClass}>Title</label><input placeholder="CTA Form Title" value={formData.CTAForm.Title} onChange={(e) => handleNestedChange('CTAForm', 'Title', e.target.value)} className={inputClass} /></div>
+                  <div>
+                    <MarkdownEditorWithPreview
+                      label="Description (Markdown)"
+                      value={formData.CTAForm.Description}
+                      onChange={(value) => handleNestedChange('CTAForm', 'Description', value)}
+                      placeholder="Enter CTA form description..."
+                    />
+                  </div>
                 </div>
 
               </div>

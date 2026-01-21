@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layers, ChevronRight } from 'lucide-react';
+import { marked } from 'marked';
 import { ApiService, ServicesDetailResponse, getImageUrl } from '@/lib/api';
 import { PageLayout, CardGrid } from '@/components/layout';
 import type { ViewMode } from '@/components/layout';
@@ -92,9 +93,10 @@ export default function ServicesPage() {
                 {service.attributes.Title || 'Untitled Service'}
               </h3>
               {service.attributes.Description && (
-                <p className="text-base text-gray-600 mb-6 line-clamp-3 leading-relaxed flex-1">
-                  {service.attributes.Description}
-                </p>
+                <div 
+                  className="text-base text-gray-600 mb-6 line-clamp-3 leading-relaxed flex-1 prose prose-sm max-w-none [&_p]:m-0"
+                  dangerouslySetInnerHTML={{ __html: marked.parse(service.attributes.Description) as string }}
+                />
               )}
             </div>
           </div>
@@ -139,9 +141,10 @@ export default function ServicesPage() {
                 {service.attributes.Title || 'Untitled Service'}
                </h3>
                {service.attributes.Description && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {service.attributes.Description}
-                  </p>
+                  <div 
+                    className="text-sm text-gray-600 line-clamp-2 prose prose-sm max-w-none [&_p]:m-0"
+                    dangerouslySetInnerHTML={{ __html: marked.parse(service.attributes.Description) as string }}
+                  />
                )}
             </div>
 

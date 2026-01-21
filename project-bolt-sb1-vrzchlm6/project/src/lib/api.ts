@@ -268,6 +268,13 @@ export class ApiService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error('Strapi Error Response:', JSON.stringify(errorData, null, 2));
+      // Extract detailed validation errors if available
+      const details = errorData.error?.details?.errors;
+      if (details && Array.isArray(details)) {
+        const messages = details.map((e: any) => `${e.path?.join('.')}: ${e.message}`).join('; ');
+        throw new Error(messages || errorData.error?.message || 'Failed to update news article');
+      }
       throw new Error(errorData.error?.message || 'Failed to update news article');
     }
 
@@ -396,6 +403,48 @@ export class ApiService {
     const result = await response.json();
     // Strapi upload endpoint returns an array
     return Array.isArray(result) ? result[0] : result;
+  }
+
+  static async uploadMediaFile(
+    files: File[],
+    options?: {
+      ref?: string;      // e.g., 'api::service-detail.service-detail'
+      refId?: number;    // e.g., 8
+      field?: string;    // e.g., 'featured_image'
+    }
+  ): Promise<MediaFile[]> {
+    const formData = new FormData();
+
+    // Append each file
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+
+    // Append optional reference fields
+    if (options?.ref) {
+      formData.append('ref', options.ref);
+    }
+    if (options?.refId !== undefined) {
+      formData.append('refId', options.refId.toString());
+    }
+    if (options?.field) {
+      formData.append('field', options.field);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to upload file');
+    }
+
+    return response.json();
   }
 }
 

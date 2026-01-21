@@ -228,12 +228,17 @@ export default function NewsFormPage() {
         payload.BreadCrumb = breadcrumbArray;
       }
 
-      // Add SEO
+      // Add SEO (metaDescription must be at least 50 characters for Strapi validation)
+      const metaDescription = formData.seoDescription || formData.shortDescription || '';
       const seoPayload: any = {
         metaTitle: formData.seoTitle || formData.title,
-        metaDescription: formData.seoDescription || formData.shortDescription,
         keywords: formData.seoKeywords,
       };
+
+      // Only include metaDescription if it meets the minimum length requirement (50 chars)
+      if (metaDescription.length >= 50) {
+        seoPayload.metaDescription = metaDescription;
+      }
 
       // Add metaImage if set
       if (formData.seoMetaImage) {
@@ -269,11 +274,11 @@ export default function NewsFormPage() {
       if (isNewNews) {
         const response = await ApiService.createNewsArticle(payload);
         console.log('Create response:', response);
-        alert('News article created successfully!');
+        alert(shouldPublish ? 'News article published successfully!' : 'Draft created successfully!');
       } else {
         const response = await ApiService.updateNewsArticle(parseInt(id!), payload);
         console.log('Update response:', response);
-        alert('News article updated successfully!');
+        alert(shouldPublish ? 'News article published successfully!' : 'Draft saved successfully!');
       }
 
       navigate('/news');

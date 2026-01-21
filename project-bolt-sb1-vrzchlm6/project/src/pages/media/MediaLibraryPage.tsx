@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, LayoutGrid, List, X, Check } from 'lucide-react';
+import { Search, LayoutGrid, List, X, Check, Plus } from 'lucide-react';
 import { Sidebar } from '@/components/layout';
 import { ApiService, MediaFile, getImageUrl } from '@/lib/api';
 import MediaDetailModal from './MediaDetailModal';
+import MediaUploadModal from './MediaUploadModal';
 
 interface MediaLibraryPageProps {
   isSelectionMode?: boolean;
@@ -20,6 +21,8 @@ export default function MediaLibraryPage({
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showUploadModalSelection, setShowUploadModalSelection] = useState(false);
 
   useEffect(() => {
     loadMediaFiles();
@@ -95,6 +98,15 @@ export default function MediaLibraryPage({
                   <List className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Upload button */}
+              <button
+                onClick={() => setShowUploadModalSelection(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Upload
+              </button>
 
               {/* Cancel button */}
               {onCancel && (
@@ -180,6 +192,21 @@ export default function MediaLibraryPage({
             </div>
           )}
         </div>
+
+        {/* Upload Modal in Selection Mode */}
+        {showUploadModalSelection && (
+          <MediaUploadModal
+            onClose={() => setShowUploadModalSelection(false)}
+            onUploadComplete={(files) => {
+              setShowUploadModalSelection(false);
+              loadMediaFiles();
+              // If files were uploaded and we're in selection mode, auto-select the first one
+              if (files.length > 0 && onSelect) {
+                onSelect(files[0]);
+              }
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -197,6 +224,13 @@ export default function MediaLibraryPage({
                 <h1 className="text-3xl font-bold text-gray-900 mb-1">Media Library</h1>
                 <p className="text-base text-gray-600">Manage and organize your media files</p>
               </div>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                <Plus className="w-5 h-5" />
+                Add new assets
+              </button>
             </div>
 
             <div className="flex items-center justify-between gap-4">
@@ -327,6 +361,17 @@ export default function MediaLibraryPage({
           file={selectedFile}
           onClose={() => setSelectedFile(null)}
           onUpdate={loadMediaFiles}
+        />
+      )}
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <MediaUploadModal
+          onClose={() => setShowUploadModal(false)}
+          onUploadComplete={() => {
+            setShowUploadModal(false);
+            loadMediaFiles();
+          }}
         />
       )}
     </div>
