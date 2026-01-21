@@ -1,16 +1,27 @@
-import { MediaFile, getImageUrl } from '@/lib/api';
-import { X } from 'lucide-react';
+import { MediaFile, getImageUrl, ApiService } from '@/lib/api';
+import { X, Loader2, Check } from 'lucide-react';
 import { useState } from 'react';
 
 interface MediaDetailModalProps {
   file: MediaFile;
   onClose: () => void;
+  onUpdate?: () => void;
 }
 
-export default function MediaDetailModal({ file, onClose }: MediaDetailModalProps) {
+export default function MediaDetailModal({ file, onClose, onUpdate }: MediaDetailModalProps) {
   const [fileName, setFileName] = useState(file.name);
   const [altText, setAltText] = useState(file.alternativeText || '');
   const [caption, setCaption] = useState(file.caption || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Track the last saved values as baseline for change detection
+  const [savedBaseline, setSavedBaseline] = useState({
+    name: file.name,
+    alternativeText: file.alternativeText || '',
+    caption: file.caption || '',
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US');
@@ -22,19 +33,91 @@ export default function MediaDetailModal({ file, onClose }: MediaDetailModalProp
 
   const imageUrl = getImageUrl(file.url);
 
+  const hasChanges = 
+    fileName !== savedBaseline.name ||
+    altText !== savedBaseline.alternativeText ||
+    caption !== savedBaseline.caption;
+
+  const handleSave = async () => {
+    if (!hasChanges) return;
+
+    setIsSaving(true);
+    setError(null);
+    setSaveSuccess(false);
+
+    try {
+      await ApiService.updateMediaFile(file.id, {
+        name: fileName,
+        alternativeText: altText || null,
+        caption: caption || null,
+      });
+      
+      // Update baseline to current values so hasChanges becomes false
+      setSavedBaseline({
+        name: fileName,
+        alternativeText: altText,
+        caption: caption,
+      });
+      
+      setSaveSuccess(true);
+      onUpdate?.();
+      
+      // Reset success indicator after 2 seconds
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-4xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-dark">Media Details</h2>
-          <button 
-            onClick={onClose} 
-            className="p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSave}
+              disabled={isSaving || !hasChanges}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                saveSuccess
+                  ? 'bg-green-500 text-white'
+                  : hasChanges
+                    ? 'bg-primary text-white hover:bg-primary/90'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Saved
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </button>
+            <button 
+              onClick={onClose} 
+              className="p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+        
+        {/* Error message */}
+        {error && (
+          <div className="mx-8 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            {error}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           <div className="flex flex-col lg:flex-row h-full">

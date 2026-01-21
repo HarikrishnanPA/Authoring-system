@@ -372,6 +372,31 @@ export class ApiService {
 
     return response.json();
   }
+
+  static async updateMediaFile(
+    id: number,
+    fileInfo: { name: string; alternativeText: string | null; caption: string | null }
+  ): Promise<MediaFile> {
+    const formData = new FormData();
+    formData.append('fileInfo', JSON.stringify(fileInfo));
+
+    const response = await fetch(`${API_BASE_URL}/api/upload?id=${id}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_STRAPI_API_TOKEN}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || 'Failed to update media file');
+    }
+
+    const result = await response.json();
+    // Strapi upload endpoint returns an array
+    return Array.isArray(result) ? result[0] : result;
+  }
 }
 
 export type ServicesDetailItem = ServicesDetailResponse['data'][0];

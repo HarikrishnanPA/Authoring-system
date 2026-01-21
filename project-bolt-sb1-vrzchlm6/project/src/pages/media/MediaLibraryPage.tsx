@@ -326,6 +326,7 @@ export default function MediaLibraryPage({
         <MediaDetailModal
           file={selectedFile}
           onClose={() => setSelectedFile(null)}
+          onUpdate={loadMediaFiles}
         />
       )}
     </div>
